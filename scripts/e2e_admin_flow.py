@@ -169,6 +169,37 @@ def location_id(headers: dict[str, str], pattern: str) -> int:
     return int(match.group(1))
 
 
+def first_group_id(client: Client) -> str:
+    """Book 必须属于某个分组，从新建表单的分组下拉框里取第一个可选值。
+
+    分组是必填项（见 book-groups 规格），而本脚本拿不到数据库 id，
+    所以读表单 HTML 而不是硬编码 1。
+    """
+    status, _, body = client.get("/admin/books/new")
+    if status != 200:
+        raise Failure(f"打开新建 Book 表单返回 {status}")
+    html = body.decode("utf-8", "replace")
+    block = re.search(r'<select[^>]*name="group"[^>]*>(.*?)</select>', html, re.S)
+    if not block:
+        raise Failure("新建 Book 表单里找不到分组下拉框（name=\"group\"）")
+    ids = re.findall(r'<option value="(\d+)"', block.group(1))
+    if not ids:
+        raise Failure("分组下拉框是空的：站点里还没有任何分组")
+    return ids[0]
+
+
+def first_section_id(client: Client, book_id: int, chapter_id: int) -> int:
+    """版本、替换、回滚现在都挂在「节」上，从章编辑页的节列表里取第一个节 id。"""
+    status, _, body = client.get(f"/admin/books/{book_id}/chapters/{chapter_id}")
+    if status != 200:
+        raise Failure(f"打开章编辑页返回 {status}")
+    html = body.decode("utf-8", "replace")
+    ids = re.findall(rf"/chapters/{chapter_id}/sections/(\d+)", html)
+    if not ids:
+        raise Failure("章编辑页里没有找到任何节（上传没生成节？）")
+    return int(ids[0])
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="BookHub 端到端演练")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
@@ -193,6 +224,7 @@ def main() -> int:
 
     step(client, "登录管理端", lambda: _login(client, args.username, args.password))
     csrf = client.csrf("/admin")
+    group_id = first_group_id(client)
 
     def create_book() -> int:
         status, headers, body = client.form(
@@ -202,9 +234,9 @@ def main() -> int:
                 "slug": f"e2e-{stamp.lower()}",
                 "summary": "端到端演练数据，可删除",
                 "icon": "",
+                "group": group_id,
                 "format": "markdown",
                 "visibility": "public",
-                "sort_order": "",
                 "csrf_token": csrf,
             },
         )
@@ -246,9 +278,9 @@ def main() -> int:
                 "slug": f"e2e-html-{stamp.lower()}",
                 "summary": "端到端演练数据（HTML 类型）",
                 "icon": "",
+                "group": group_id,
                 "format": "html",
                 "visibility": "public",
-                "sort_order": "",
                 "csrf_token": csrf,
             },
         )
@@ -305,10 +337,14 @@ def main() -> int:
         lambda: _expect_search(client, book_slug),
     )
 
+    section_id = step(
+        client, "读取章内首节 id", lambda: first_section_id(client, book_id, md_id)
+    )
+
     def replace() -> str:
-        token = client.csrf(f"/admin/books/{book_id}/chapters/{md_id}")
+        token = client.csrf(f"/admin/books/{book_id}/chapters/{md_id}/sections/{section_id}")
         status, _, body = client.form(
-            f"/admin/books/{book_id}/chapters/{md_id}/replace",
+            f"/admin/books/{book_id}/chapters/{md_id}/sections/{section_id}/replace",
             {
                 "title": "端到端章节",
                 "slug": "e2e-md",
@@ -329,12 +365,13 @@ def main() -> int:
             raise Failure("替换后原文未更新")
         return payload["etag"] if "etag" in payload else payload["checksum"]
 
-    step(client, "替换章节（版本 +1、内容更新）", replace)
+    step(client, "替换节（版本 +1、内容更新）", replace)
 
     def rollback() -> None:
-        token = client.csrf(f"/admin/books/{book_id}/chapters/{md_id}/versions")
+        token = client.csrf(f"/admin/books/{book_id}/chapters/{md_id}/sections/{section_id}/versions")
         status, _, body = client.form(
-            f"/admin/books/{book_id}/chapters/{md_id}/rollback/1", {"csrf_token": token}
+            f"/admin/books/{book_id}/chapters/{md_id}/sections/{section_id}/rollback/1",
+            {"csrf_token": token},
         )
         if status != 303:
             raise Failure(f"回滚返回 {status}: {body[:300]!r}")
@@ -347,7 +384,7 @@ def main() -> int:
     step(client, "回滚到版本 1（生成新版本）", rollback)
 
     def delete_chapter() -> None:
-        token = client.csrf(f"/admin/books/{book_id}")
+        token = client.csrf(f"/admin/books/{book_id}/chapters/{md_id}")
         status, _, body = client.form(
             f"/admin/books/{book_id}/chapters/{md_id}/delete", {"csrf_token": token}
         )
@@ -358,12 +395,13 @@ def main() -> int:
             raise Failure(f"删除后 API 应 404，实际 {code}")
         since = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
         payload = json.loads(api(f"/api/v1/changes?since={since}")[1])
+        # 增量同步已下沉到节：响应的数组字段是 sections（章节删除时其下节带 deleted 墓碑）
         tomb = [
             item
-            for item in payload["chapters"]
-            if item["slug"] == "e2e-md" and item["book_slug"] == book_slug
+            for item in payload.get("sections", [])
+            if item.get("chapter_slug") == "e2e-md" and item.get("book_slug") == book_slug
         ]
-        if not tomb or not tomb[0]["deleted"]:
+        if not tomb or not any(item.get("deleted") for item in tomb):
             raise Failure("changes 未返回删除墓碑")
 
     step(client, "删除章节（API 404 + 墓碑）", delete_chapter)
@@ -386,7 +424,13 @@ def main() -> int:
         if status != 200:
             raise Failure(f"审计页返回 {status}")
         text = body.decode("utf-8")
-        for action in ("book.create", "chapter.create", "chapter.replace", "chapter.delete", "chapter.restore"):
+        for action in (
+            "book.create",
+            "chapter.create",
+            "section.replace",
+            "chapter.delete",
+            "chapter.restore",
+        ):
             if action not in text:
                 raise Failure(f"审计页缺少 {action}")
 

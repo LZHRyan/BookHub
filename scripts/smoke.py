@@ -278,7 +278,17 @@ def run(base: str, api_key: str, timeout: float, reporter: Reporter) -> bool:
         lambda: _chapter_raw(api, book_ref, chapter_ref, api_key, timeout),
     )
 
-    query = _first_query(chapter_title or str(book_payload.get("title") or "") or chapter_ref)
+    # 检索索引的粒度是「节」（节标题 + 正文），章标题不进索引：章标题与首节标题
+    # 不同时（例如章「开始之前」下只有一节「这本书是什么」）拿章标题去搜必然 0 命中。
+    # 所以优先用首节标题当检索词。
+    section_title = ""
+    if chapter is not FAILED:
+        sections = chapter.get("sections") or []
+        if sections:
+            section_title = str(sections[0].get("title") or "")
+    query = _first_query(
+        section_title or chapter_title or str(book_payload.get("title") or "") or chapter_ref
+    )
     step(reporter, f"GET /api/v1/search?q={query}", lambda: _search(api, query, api_key, timeout))
 
     since = (datetime.now(UTC) - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")

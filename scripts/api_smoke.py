@@ -121,6 +121,7 @@ def main() -> int:
     stamp = uuid.uuid4().hex[:6]
     book_slug = ""
     chapter_slug = ""
+    section_slug = ""
     media_url = ""
 
     def meta():
@@ -131,18 +132,29 @@ def main() -> int:
 
     def create_book():
         nonlocal book_slug
+        # Book 必须属于某个分组（book-groups 规格），先取一个已有分组的 slug
+        status, groups, _ = call("GET", "/api/v1/admin/groups")
+        assert status == 200, f"{status} {groups}"
+        items = groups.get("items") or []
+        assert items, "站点里没有任何分组，无法创建 Book"
+        group_slug = items[0]["slug"]
         status, body, _ = call(
             "POST",
             "/api/v1/admin/books",
-            body={"title": f"API 冒烟 {stamp}", "format": "markdown", "summary": "smoke"},
+            body={
+                "title": f"API 冒烟 {stamp}",
+                "format": "markdown",
+                "summary": "smoke",
+                "group": group_slug,
+            },
             headers={"Idempotency-Key": f"smoke-book-{stamp}"},
         )
         assert status == 201, f"{status} {body}"
         book_slug = body["slug"]
-        return f"slug={book_slug}"
+        return f"slug={book_slug} group={group_slug}"
 
     def upload_chapter():
-        nonlocal chapter_slug
+        nonlocal chapter_slug, section_slug
         content, content_type = multipart(
             {"title": "冒烟章节", "status": "published", "note": "smoke"},
             "smoke.md",
@@ -157,12 +169,16 @@ def main() -> int:
         )
         assert status == 201, f"{status} {body}"
         chapter_slug = body["slug"]
-        return f"chapter={chapter_slug} v{body['version']}"
+        sections = body.get("sections") or []
+        assert sections, f"章节下面没有生成节：{body}"
+        section_slug = sections[0]["slug"]
+        return f"chapter={chapter_slug} section={section_slug} v{sections[0]['version']}"
 
     def replace_chapter():
+        # 正文与版本都在节上：章级 PATCH 现在只改标题 / slug
         status, body, _ = call(
             "PATCH",
-            f"/api/v1/admin/books/{book_slug}/chapters/{chapter_slug}",
+            f"/api/v1/admin/books/{book_slug}/chapters/{chapter_slug}/sections/{section_slug}",
             body={"content": "# 冒烟 v2", "base_version": 1},
         )
         assert status == 200, f"{status} {body}"
@@ -171,7 +187,9 @@ def main() -> int:
 
     def rollback():
         status, body, _ = call(
-            "POST", f"/api/v1/admin/books/{book_slug}/chapters/{chapter_slug}/rollback/1"
+            "POST",
+            f"/api/v1/admin/books/{book_slug}/chapters/{chapter_slug}"
+            f"/sections/{section_slug}/rollback/1",
         )
         assert status == 200, f"{status} {body}"
         assert body["version"] == 3, body
@@ -227,7 +245,7 @@ def main() -> int:
     def reference_media():
         status, body, _ = call(
             "PATCH",
-            f"/api/v1/admin/books/{book_slug}/chapters/{chapter_slug}",
+            f"/api/v1/admin/books/{book_slug}/chapters/{chapter_slug}/sections/{section_slug}",
             body={"content": f"# 冒烟\n\n![架构]({media_url})\n"},
         )
         assert status == 200, f"{status} {body}"
