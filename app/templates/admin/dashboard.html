@@ -1,0 +1,178 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <div class="page-head page-head-row">
+    <div>
+      <h1>内容管理</h1>
+      <p>
+        {% if selected_group %}
+          分组「{{ selected_group.title }}」下 {{ pager.total }} 个 Book（全站 {{ book_total }} 个）；草稿只有登录用户可见。
+        {% else %}
+          {{ pager.total }} 个 Book · {{ chapter_total }} 个章 / {{ section_total }} 个节在库；草稿只有登录用户可见，删除的内容先进入回收站。
+        {% endif %}
+      </p>
+    </div>
+    <div class="toolbar">
+      <a class="btn btn-secondary" href="{{ root_path }}/admin/groups">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg>
+        分组管理
+      </a>
+      <a class="btn btn-secondary" href="{{ root_path }}/admin/trash">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+        回收站
+      </a>
+      <a class="btn btn-primary" href="{{ root_path }}/admin/books/new">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        新建 Book
+      </a>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat">
+      <div class="num">{{ book_total }}</div>
+      <div class="label">Book 总数</div>
+    </div>
+    <div class="stat">
+      <div class="num">{{ chapter_total }}</div>
+      <div class="label">章总数</div>
+    </div>
+    <div class="stat">
+      <div class="num">{{ section_total }}</div>
+      <div class="label">节总数</div>
+    </div>
+    <div class="stat">
+      <div class="num">{{ trash_books + trash_chapters }}</div>
+      <div class="label">回收站条目</div>
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="alert alert-warn" role="alert">
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 17H3L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+      <div>{{ error }}</div>
+    </div>
+  {% endif %}
+
+  {% if trash_books or trash_chapters %}
+    <div class="alert alert-info">
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+      <div>
+        回收站：Book <strong>{{ trash_books }}</strong> 个 · 章 <strong>{{ trash_chapters }}</strong> 个，
+        <a href="{{ root_path }}/admin/trash">去回收站处理</a>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="section-title">
+    <h2>Book 列表</h2>
+    <span class="small muted">章数按「已发布 / 全部」显示</span>
+  </div>
+
+  <section class="card card-pad filter-panel">
+    <form class="toolbar filter-bar" method="get" action="{{ root_path }}/admin">
+      <div class="field">
+        <label for="f-group">按分组筛选</label>
+        <select id="f-group" name="group">
+          <option value="">全部分组（{{ book_total }} 个 Book）</option>
+          {% for g in groups %}
+            <option value="{{ g.slug }}" {% if selected_group and selected_group.id == g.id %}selected{% endif %}>{{ g.title }}（{{ group_counts.get(g.id, 0) }}）</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>
+        筛选
+      </button>
+      {% if selected_group %}
+        <a class="btn btn-ghost" href="{{ root_path }}/admin">清除筛选</a>
+        <span class="small muted">当前只看分组「{{ selected_group.title }}」，翻页保留筛选。</span>
+      {% endif %}
+    </form>
+  </section>
+
+  {% if items %}
+    <div class="admin-card-grid">
+      {% for item in items %}
+        <article class="card admin-card book-admin-card">
+          <header class="admin-card-head">
+            {% if item.cover %}
+              <span class="admin-card-cover"><img src="{{ item.cover }}" alt="{{ item.book.title }} 封面" loading="lazy"></span>
+            {% else %}
+              <span class="admin-card-cover admin-card-cover-icon" aria-hidden="true">
+                {% if item.book.icon %}{{ item.book.icon }}{% else %}
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z"/><path d="M8 3v18"/></svg>
+                {% endif %}
+              </span>
+            {% endif %}
+            <div class="admin-card-title">
+              <h3><a href="{{ root_path }}/admin/books/{{ item.book.id }}">{{ item.book.title }}</a></h3>
+              <span class="small faint">访问地址</span>
+              <span class="mono small faint">/b/{{ item.book.slug }}</span>
+            </div>
+            {% if item.book.visibility == 'unlisted' %}
+              <span class="badge badge-warn">未列出</span>
+            {% else %}
+              <span class="badge badge-ok">公开</span>
+            {% endif %}
+            {% if item.book.is_builtin %}
+              <span class="badge badge-accent">内置指南</span>
+            {% endif %}
+          </header>
+
+          <p class="admin-card-desc">{{ item.book.summary or '暂无简介' }}</p>
+
+          <div class="admin-card-meta">
+            {% if item.book_group %}
+              <a class="badge" href="{{ root_path }}/admin?group={{ item.book_group.slug }}">{% if item.book_group.icon %}{{ item.book_group.icon }} {% endif %}{{ item.book_group.title }}</a>
+            {% endif %}
+            <span class="badge">{{ item.published }} / {{ item.total }} 章</span>
+            <span class="small muted">近 7 天访问 {{ item.stats.recent_views }} 次</span>
+            <span class="small faint">{{ item.book.updated_at.strftime("%Y-%m-%d %H:%M") }}</span>
+          </div>
+
+          <footer class="admin-card-foot">
+            <a class="btn btn-sm" href="{{ root_path }}/admin/books/{{ item.book.id }}/edit">
+              <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4Z"/><path d="M14 6l4 4"/></svg>
+              编辑
+            </a>
+            <a class="btn btn-sm" href="{{ root_path }}/b/{{ item.book.slug }}" target="_blank" rel="noopener">
+              <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-8 8"/><path d="M18 14v6H4V6h6"/></svg>
+              查看
+            </a>
+            {% if item.book.is_builtin %}
+              <span class="small faint" title="内置指南随系统生命周期存在，不能删除">内置 · 不可删除</span>
+            {% else %}
+              <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ item.book.id }}/delete" data-confirm="确认删除 Book「{{ item.book.title }}」？其中的章节会一起进入回收站，可从回收站恢复。">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-danger">
+                  <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+                  删除
+                </button>
+              </form>
+            {% endif %}
+          </footer>
+        </article>
+      {% endfor %}
+    </div>
+    {# 共享分页片段会读取 query（前台搜索用），管理端显式置空避免渲染差异 #}
+    {% set query = '' %}
+    {% include "_pager.html" with context %}
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg stroke="currentColor" class="icon icon-lg" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z"/><path d="M8 3v18"/></svg>
+        </span>
+        {% if selected_group %}
+          <h3>分组「{{ selected_group.title }}」还没有 Book</h3>
+          <p>新建 Book 时在「分组」下拉里选它，或在 Book 编辑页把已有的书改到这个分组。</p>
+          <a class="btn btn-ghost" href="{{ root_path }}/admin">清除筛选</a>
+        {% else %}
+          <h3>还没有 Book</h3>
+          <p>先新建一个 Book，再往里面上传 Markdown 或 HTML 章节。</p>
+          <a class="btn btn-primary" href="{{ root_path }}/admin/books/new">新建 Book</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="page-head">
+    <h1>搜索结果</h1>
+    <p>
+      {% if query %}
+        “{{ query }}” 命中 {{ pager.total }} 节{% if book %}（限定在 {{ book.title }}）{% endif %}
+      {% else %}
+        输入关键词开始搜索，支持中文两字词（例如“部署”）
+      {% endif %}
+    </p>
+  </div>
+
+  {% if book %}
+    <p class="small muted">
+      当前范围：<a href="{{ url_for('book_detail', book_slug=book.slug) }}">{{ book.title }}</a>
+      · <a href="{{ url_for('search_page') }}?q={{ query|urlencode }}">搜索全站</a>
+    </p>
+  {% endif %}
+
+  {% if results %}
+    <div class="result-list">
+      {% for item in results %}
+        <a class="card result-item" href="{{ url_for('section_detail', book_slug=item.book_slug, chapter_slug=item.chapter_slug, section_slug=item.section_slug) }}">
+          <h2>{{ item.section_title }}</h2>
+          <div class="path">
+            {{ item.book_title }} · {{ item.chapter_title }} · 更新于 {{ item.updated_at.strftime("%Y-%m-%d") }}{% if item.exact %} · <span class="badge badge-warn">单字模糊匹配</span>{% endif %}
+          </div>
+          {# 只能放 make_snippet() 的产物：它内部已 escape，仅额外注入 <mark>；换实现必须保留这点 #}
+          <p class="snippet">{{ item.snippet | safe }}</p>
+        </a>
+      {% endfor %}
+    </div>
+    {% include "_pager.html" with context %}
+  {% elif query %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </span>
+        <h3>没有找到包含“{{ query }}”的已发布内容</h3>
+        <p>试试更短的关键词，或确认目标所在的章已经发布（草稿不会被检索到）。</p>
+      </div>
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </span>
+        <h3>输入关键词开始搜索</h3>
+        <p>搜索覆盖所有已发布章节的标题与正文（按节命中，链接直达节页），支持中文两字词与英文大小写不敏感。</p>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

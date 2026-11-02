@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">站点设置</span>
+  </nav>
+
+  <div class="page-head">
+    <h1>站点设置</h1>
+    <p>这些内容会立即显示在访客可见的页面里。</p>
+  </div>
+
+  {% if saved %}
+    <div class="alert alert-ok" role="status">设置已保存，前台即时生效。</div>
+  {% endif %}
+  {% if error %}
+    <div class="alert alert-error" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <section class="card">
+    <div class="card-header">
+      <h2>站点信息</h2>
+      <span class="badge">保存后立即生效</span>
+    </div>
+    <div class="card-body">
+      <form class="form form-wide" method="post" action="{{ root_path }}/admin/settings">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="field">
+          <label for="site_name">站点名称 <span class="req" aria-hidden="true">*</span></label>
+          <input type="text" id="site_name" name="site_name" value="{{ values.site_name }}" maxlength="120" required>
+          <span class="hint">显示在浏览器标题、页头与登录页。</span>
+        </div>
+
+        <div class="field">
+          <label for="site_footer">页脚文字</label>
+          <input type="text" id="site_footer" name="site_footer" value="{{ values.site_footer }}" maxlength="200">
+          <span class="hint">例如「研发部内部资料 · 请勿外传」。</span>
+        </div>
+
+        <div class="field">
+          <label for="home_intro">首页说明</label>
+          <textarea id="home_intro" name="home_intro" placeholder="显示在首页 Book 列表上方">{{ values.home_intro }}</textarea>
+          <span class="hint">支持少量 HTML，会被白名单净化；也可以留空。</span>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>
+            保存设置
+          </button>
+          <a class="btn btn-ghost" href="{{ root_path }}/">查看前台</a>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <div class="section-title">
+    <h2>其他配置</h2>
+  </div>
+  <div class="alert alert-info">
+    <div>
+      只读接口的 API Key 不在这里维护，通过环境变量 <span class="mono">API_KEY</span> 配置：
+      留空表示 <span class="mono">/api/v1</span> 允许匿名读取；设置后调用方需带上
+      <span class="mono">X-API-Key</span> 请求头。修改环境变量后需要重启容器才生效。
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block meta %}
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ share_title }}">
+  <meta property="og:description" content="{{ (book.summary or site.site_name) | truncate(120, true, '…') }}">
+  <meta property="og:url" content="{{ share_url }}">
+{% endblock %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ url_for('index') }}">{{ site.site_name }}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="{{ url_for('book_detail', book_slug=book.slug) }}">{{ book.title }}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="{{ url_for('chapter_detail', book_slug=book.slug, chapter_slug=chapter.slug) }}">{{ chapter.title }}</a>
+    {% if section.title != chapter.title %}
+      <span class="sep" aria-hidden="true">/</span>
+      <span aria-current="page">{{ section.title }}</span>
+    {% endif %}
+  </nav>
+
+  <div class="article-actions">
+    <button type="button" class="btn btn-sm" data-copy="{{ share_url }}">
+      <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5h10"/></svg>
+      复制链接
+    </button>
+    {% if current_user and not preview %}
+      <a class="btn btn-sm btn-primary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ section.id }}">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4Z"/><path d="M14 6l4 4"/></svg>
+        编辑这一节
+      </a>
+    {% endif %}
+    <span class="small faint">
+      {% if section_total > 1 %}{{ chapter.title }} {{ section_position }}/{{ section_total }} 节 · {% endif %}共 {{ section.word_count }} 字
+      · v{{ section.current_version_no }}
+    </span>
+  </div>
+
+  {% if section.format == 'html' %}
+    <div class="doc-view-bar">
+      <span>
+        {% if book.html_view == 'document' %}
+          这一节是 HTML 文档：本文按原始文档提供，含它自带的样式与导航；站内版已移除脚本与自定义样式。
+        {% else %}
+          当前是站内安全渲染版：脚本与自定义样式已移除，只保留结构与文本。
+        {% endif %}
+      </span>
+      <a class="btn btn-sm" href="{{ url_for('section_raw', book_slug=book.slug, chapter_slug=chapter.slug, section_slug=section.slug) }}" target="_blank" rel="noopener">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-8 8"/><path d="M18 14v6H4V6h6"/></svg>
+        原始排版
+      </a>
+    </div>
+  {% endif %}
+
+  <div class="reader{% if toc %} reader-aside-left{% endif %}">
+    {% if toc %}
+      <aside class="reader-aside" aria-label="本页目录">
+        <h2>本页目录</h2>
+        <ul class="toc-side">
+          {% for item in toc %}
+            <li class="lvl-{{ item.level }}"><a href="#{{ item.anchor }}">{{ item.text }}</a></li>
+          {% endfor %}
+        </ul>
+      </aside>
+    {% endif %}
+
+    <article class="card article">
+      {% if preview %}
+        <div class="preview-banner" role="status">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+          <span>
+            预览模式：访客与外部 API 仍按章的状态处理。
+            {% if chapter.status != "published" %}<strong>当前章是草稿，访客看不到。</strong>{% endif %}
+          </span>
+        </div>
+      {% endif %}
+
+      {% if toc %}
+        <details class="toc-inline">
+          <summary>本页目录（{{ toc | length }} 节）</summary>
+          <ul class="toc-side">
+            {% for item in toc %}
+              <li class="lvl-{{ item.level }}"><a href="#{{ item.anchor }}">{{ item.text }}</a></li>
+            {% endfor %}
+          </ul>
+        </details>
+      {% endif %}
+
+      <div class="prose" id="article-body">
+        {{ section.content_rendered | media_urls | safe }}
+      </div>
+
+      {% if prev_section or next_section %}
+        <nav class="pager" aria-label="章节导航">
+          {% if prev_section %}
+            <a href="{{ url_for('section_detail', book_slug=book.slug, chapter_slug=prev_section[0].slug, section_slug=prev_section[1].slug) }}">
+              <span class="label">上一篇 · {{ prev_section[0].title }}</span>
+              <span class="title">{{ prev_section[1].title }}</span>
+            </a>
+          {% else %}<span></span>{% endif %}
+          {% if next_section %}
+            <a class="next" href="{{ url_for('section_detail', book_slug=book.slug, chapter_slug=next_section[0].slug, section_slug=next_section[1].slug) }}">
+              <span class="label">下一篇 · {{ next_section[0].title }}</span>
+              <span class="title">{{ next_section[1].title }}</span>
+            </a>
+          {% else %}<span></span>{% endif %}
+        </nav>
+      {% endif %}
+
+      <div class="article-meta">
+        <span>更新于 {{ section.updated_at.strftime("%Y-%m-%d %H:%M") }}</span>
+        <span>版本 v{{ section.current_version_no }}</span>
+        <span>约 {{ section.word_count }} 字</span>
+        <a href="{{ root_path }}/api/v1/books/{{ book.slug }}/chapters/{{ chapter.slug }}?section={{ section.slug }}">API</a>
+      </div>
+    </article>
+  </div>
+{% endblock %}

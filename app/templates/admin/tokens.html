@@ -1,0 +1,218 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <div class="page-head">
+    <h1>API Token</h1>
+    <p class="muted">
+      给脚本或 AI 工具用的程序化凭据。调用时带
+      <span class="mono">Authorization: Bearer &lt;token&gt;</span>，
+      接口前缀 <span class="mono">{{ root_path }}/api/v1/admin</span>。
+    </p>
+  </div>
+
+  {% if new_token %}
+    <div class="alert alert-ok" role="status">
+      <div>
+        <strong>Token「{{ new_name }}」已创建，明文只显示这一次：</strong>
+        <p class="mono" style="margin:8px 0;word-break:break-all;">{{ new_token }}</p>
+        请立刻复制保存；关闭本页后无法再次查看，只能吊销重建。
+      </div>
+    </div>
+  {% endif %}
+
+  {% if error %}
+    <div class="alert alert-error" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <section class="card">
+    <div class="card-header"><h2>签发新 Token</h2></div>
+    <div class="card-body">
+      <form class="form" method="post" action="{{ root_path }}/admin/tokens">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="field-row">
+          <div class="field">
+            <label for="name">名称 <span class="req" aria-hidden="true">*</span></label>
+            <input type="text" id="name" name="name" maxlength="80" required placeholder="例如 docs-bot / cursor">
+            <span class="hint">会作为审计日志里的操作者（显示为 <span class="mono">api:名称</span>）。</span>
+          </div>
+          <div class="field">
+            <label for="expires_in_days">有效期（天）</label>
+            <input type="number" id="expires_in_days" name="expires_in_days" min="1" max="3650" placeholder="留空表示长期">
+            <span class="hint">建议给临时工具设置有效期。</span>
+          </div>
+        </div>
+
+        <fieldset class="choices">
+          <legend>作用域</legend>
+          <label class="choice">
+            <input type="checkbox" name="scope_read" value="1" checked>
+            <span class="choice-card">
+              <strong>read</strong>
+              <small>只读：Book / 章 / 节列表、版本、审计</small>
+            </span>
+          </label>
+          <label class="choice">
+            <input type="checkbox" name="scope_write" value="1">
+            <span class="choice-card">
+              <strong>write</strong>
+              <small>读写内容：Book、章、节、版本、回收站</small>
+            </span>
+          </label>
+          <label class="choice">
+            <input type="checkbox" name="scope_admin" value="1">
+            <span class="choice-card">
+              <strong>admin</strong>
+              <small>含账号、站点设置、Token 管理</small>
+            </span>
+          </label>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>可操作的 Book <span class="small muted">（不选表示全部）</span></legend>
+          <div class="book-picker"
+               data-book-picker
+               data-url="{{ root_path }}/admin/tokens/books.json"
+               data-page="{{ book_scope.page }}"
+               data-pages="{{ book_scope.pages }}"
+               data-group="{{ book_scope.group }}"
+               data-query="{{ book_scope.query }}">
+            <div class="book-picker-head">
+              <label class="sr-only" for="book-group">按分组筛选</label>
+              <select id="book-group" data-book-group>
+                <option value="">全部分组（{{ book_scope.total }} 本）</option>
+                {% for g in book_scope.groups %}
+                  <option value="{{ g.slug }}" {% if book_scope.group == g.slug %}selected{% endif %}>{{ g.title }}（{{ g.count }}）</option>
+                {% endfor %}
+              </select>
+              <div class="book-picker-search">
+                <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input type="search" data-book-search value="{{ book_scope.query }}" placeholder="搜索 Book 标题或访问标识" aria-label="搜索 Book">
+              </div>
+              <span class="small muted" data-book-count>共 {{ book_scope.total }} 本</span>
+            </div>
+
+            <div class="book-picker-list" data-book-list>
+              {% for b in book_scope.books %}
+                <label class="book-pick-row">
+                  <input type="checkbox" name="book_ids" value="{{ b.id }}"
+                         data-book-id="{{ b.id }}" data-book-title="{{ b.title }}"
+                         data-book-slug="{{ b.slug }}" data-book-icon="{{ b.icon }}">
+                  <span class="book-pick-title">{% if b.icon %}{{ b.icon }} {% endif %}{{ b.title }}</span>
+                  <span class="book-pick-meta">{{ b.slug }}{% if b.group %} · {{ b.group }}{% endif %}</span>
+                </label>
+              {% else %}
+                <p class="small muted book-picker-empty">没有符合条件的 Book。</p>
+              {% endfor %}
+            </div>
+
+            <div class="book-picker-foot">
+              <span class="small muted" data-book-range>第 {{ book_scope.page }} / {{ book_scope.pages }} 页</span>
+              <div class="book-picker-pager">
+                <button type="button" class="btn btn-sm" data-book-prev {% if book_scope.page <= 1 %}disabled{% endif %}>上一页</button>
+                <button type="button" class="btn btn-sm" data-book-next {% if book_scope.page >= book_scope.pages %}disabled{% endif %}>下一页</button>
+              </div>
+            </div>
+
+            <div class="book-picker-selected" data-book-selected hidden>
+              <span class="small muted">已选</span>
+              <span class="book-picker-chips" data-book-chips></span>
+              <button type="button" class="btn btn-sm btn-ghost" data-book-clear>清空</button>
+            </div>
+            <div data-book-hidden></div>
+          </div>
+          <span class="hint">勾选后，这个 Token 只能读写选中的 Book，其它 Book 的管理端点返回 403；跨页、跨分组勾选都会保留。</span>
+          <span class="hint"><strong>admin 作用域不能与 Book 范围共存</strong>：admin 覆盖账号、站点设置、Token 与审计，这些端点没有 Book 可拦；要限定范围请只勾 read / write。</span>
+          {% if not book_scope.total %}
+            <span class="hint">还没有 Book，签发后将拥有全部范围。</span>
+          {% endif %}
+        </fieldset>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">签发 Token</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <div class="section-title"><h2>已有 Token</h2></div>
+  {% if tokens %}
+    <div class="table-wrap">
+      <table class="table">
+        <caption class="sr-only">API Token 列表</caption>
+        <thead>
+          <tr>
+            <th>名称</th>
+            <th>前缀</th>
+            <th>作用域</th>
+            <th>范围</th>
+            <th>状态</th>
+            <th>创建</th>
+            <th>最近使用</th>
+            <th class="shrink">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for token in tokens %}
+            <tr>
+              <td class="cell-title">{{ token.name }}</td>
+              <td class="mono small">{{ token.prefix }}…</td>
+              <td>
+                {% for scope in token.scopes %}<span class="badge">{{ scope }}</span> {% endfor %}
+              </td>
+              <td class="small">
+                {% if token.books %}
+                  {% for b in token.books[:3] %}<span class="badge">{{ b.title }}</span>{% endfor %}
+                  {% if token.books|length > 3 %}
+                    <span class="badge badge-accent" title="{% for b in token.books %}{{ b.title }}{% if not loop.last %}、{% endif %}{% endfor %}">等 {{ token.books|length }} 本</span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge badge-accent">全部 Book</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if token.active %}<span class="badge badge-ok">有效</span>
+                {% elif token.revoked_at %}<span class="badge badge-danger">已吊销</span>
+                {% else %}<span class="badge badge-warn">已过期</span>{% endif %}
+                {% if token.expiry_hint and token.active %}<span class="badge badge-warn">{{ token.expiry_hint }}</span>{% endif %}
+              </td>
+              <td class="small faint">{{ token.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+              <td class="small faint">{{ token.last_used_at.strftime("%Y-%m-%d %H:%M") if token.last_used_at else "从未" }}</td>
+              <td>
+                <div class="actions">
+                  {% if token.active %}
+                    <form class="inline-form" method="post" action="{{ root_path }}/admin/tokens/{{ token.id }}/revoke"
+                          data-confirm="确认吊销 Token「{{ token.name }}」？使用它的工具会立刻失效。">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <button type="submit" class="btn btn-sm btn-danger">吊销</button>
+                    </form>
+                  {% else %}
+                    <span class="small faint">—</span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M15 7a4 4 0 1 1-3.2 6.4L5 20H2v-3l6.6-6.8A4 4 0 0 1 15 7Z"/></svg>
+        </span>
+        <h3>还没有 Token</h3>
+        <p>给需要自动化的工具各签发一个，便于单独吊销与区分审计来源。</p>
+      </div>
+    </div>
+  {% endif %}
+
+  <section class="card card-pad" style="margin-top:24px;">
+    <h2 style="margin-top:0;">给 AI 工具用的说明</h2>
+    <p class="muted small">
+      把 <span class="mono">{{ root_path }}/openapi.json</span> 交给支持 function calling 的模型即可生成工具定义；
+      每个操作都有稳定的 <span class="mono">operationId</span> 与中文说明。
+      先调 <span class="mono">GET /api/v1/admin/meta</span> 可以让工具确认自己的作用域与限制。
+      删除类接口先用 <span class="mono">dry_run=true</span> 预览，真正删除需带 <span class="mono">confirm=true</span>。
+    </p>
+  </section>
+{% endblock %}

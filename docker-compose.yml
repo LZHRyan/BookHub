@@ -1,0 +1,101 @@
+# BookHub 单机编排（SQLite + 命名卷）
+#
+# 快速开始：
+#   cp .env.example .env      # 至少填 SECRET_KEY、BOOKHUB_INITIAL_ADMIN_*
+#   docker compose up -d --build
+#   docker compose ps && curl -fsS http://127.0.0.1:8000/healthz
+#
+# 说明：DATABASE_URL / DATA_DIR 在这里给的是「容器内」默认值（${VAR:-默认} 会先读 .env，
+# 所以 .env 里显式写了就按 .env 走）。PORT 只控制宿主机映射端口，容器内固定监听 8000。
+#
+# 持久化契约（"升级不丢数据"的前提）：
+#   - 数据库、媒体库、迁移前快照全部在命名卷 bookhub-data（容器内 /data）；
+#   - 运行配置在宿主机的 .env（env_file 挂进来），不在镜像里；
+#   - 升级 = 重建容器（推荐 scripts/upgrade.sh）；只有 `docker compose down -v`
+#     或 `docker volume rm` 才会连数据卷一起删。
+#   - 想用 bind mount 自定义位置时，宿主目录必须先 chown -R 10001:10001。
+
+name: bookhub
+
+services:
+  bookhub:
+    build:
+      context: .
+      args:
+        # 依赖源：国内可用 https://pypi.tuna.tsinghua.edu.cn/simple 等镜像
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+    image: bookhub:${BOOKHUB_TAG:-latest}
+
+    # .env 不存在时 compose 会直接报错——这是有意的：不允许没有 SECRET_KEY 就启动。
+    env_file:
+      - .env
+    environment:
+      # sqlite 绝对值必须是 4 个斜杠：sqlite:////data/bookhub.db（第 3、4 个斜杠之间是空主机名）
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/bookhub.db}
+      DATA_DIR: ${DATA_DIR:-/data}
+      # 强制容器内监听 8000：.env 里的 PORT 只决定宿主机端口，
+      # 否则 .env 写了 PORT=8080 会让容器也改听 8080，与上面的 ports 映射对不上。
+      PORT: "8000"
+
+    ports:
+      # 左宿主机、右容器；容器内端口不要改（镜像健康检查与 entrypoint 都按 8000 走）
+      - "${PORT:-8000}:8000"
+
+    volumes:
+      # 数据库 + 上传内容 + 备份中间产物都在这里，删容器不丢数据
+      - bookhub-data:/data
+
+    restart: unless-stopped
+    stop_grace_period: 20s
+
+    # 不覆盖 healthcheck：沿用 Dockerfile 里的 HEALTHCHECK（python urllib 打 /healthz），
+    # 两处各写一份必然漂移。
+    labels:
+      org.opencontainers.image.title: BookHub
+      org.opencontainers.image.description: 研发部技术文档知识库
+      org.opencontainers.image.source: BookHub
+
+    # 切 Postgres 时再打开下面两行（需要 --profile postgres 同时启动 db）：
+    # depends_on:
+    #   db:
+    #     condition: service_healthy
+
+  # ------------------------------------------------ Postgres（可选，profile 隔离）
+  # 只在 `docker compose --profile postgres up -d` 时启动；
+  # 单独 `docker compose up -d` 完全不会创建它。
+  db:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bookhub}
+      POSTGRES_USER: ${POSTGRES_USER:-bookhub}
+      # 占位密码只用于本地试跑；对外环境必须覆盖成强密码
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bookhub-change-me}
+    volumes:
+      - bookhub-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # $$ 是 compose 的转义，容器内由 shell 展开 POSTGRES_USER/POSTGRES_DB
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  bookhub-data:
+  bookhub-pgdata:
+
+# ------------------------------------------------ 切换到 Postgres 的操作清单
+# 1) 镜像里目前**没有** Postgres 驱动。先在 requirements.txt 加一行 `psycopg[binary]>=3.2`，
+#    再重新 `docker compose build`（builder 阶段会把它装成 wheel）。
+#    不做这一步，启动只会得到 "No module named 'psycopg'"。
+# 2) .env 里设置：
+#      DATABASE_URL=postgresql+psycopg://bookhub:<强密码>@db:5432/bookhub
+#      POSTGRES_DB=bookhub
+#      POSTGRES_USER=bookhub
+#      POSTGRES_PASSWORD=<强密码>
+# 3) 启动：docker compose --profile postgres up -d --build
+#    迁移在 entrypoint 内自动执行。
+# 4) 已有 SQLite 数据不自动搬迁：停服后按 /api/v1/books/{slug}/export 导出再走管理端重新上传。
+# 5) 备份：改用 `pg_dump -Fc` + 内容卷打包；docker/backup.sh 目前只实现 SQLite 在线备份。

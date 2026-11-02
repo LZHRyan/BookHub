@@ -1,0 +1,21 @@
+{% if pager and pager.pages > 1 %}
+  {# 翻页时保留当前所有查询参数（q、book_id、actor…），只替换 page #}
+  {% set kept = [] %}
+  {% for key, value in request.query_params.multi_items() %}
+    {% if key != "page" %}{% set _ = kept.append(key ~ "=" ~ (value | urlencode)) %}{% endif %}
+  {% endfor %}
+  {% set base_query = kept | join("&") %}
+  <nav class="pager-bar" aria-label="分页">
+    {% if pager.has_prev %}
+      <a class="btn btn-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ pager.page - 1 }}">上一页</a>
+    {% else %}
+      <span class="btn btn-sm" aria-disabled="true" style="opacity:.45;pointer-events:none;">上一页</span>
+    {% endif %}
+    <span class="muted small">第 {{ pager.page }} / {{ pager.pages }} 页 · 共 {{ pager.total }} 条</span>
+    {% if pager.has_next %}
+      <a class="btn btn-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ pager.page + 1 }}">下一页</a>
+    {% else %}
+      <span class="btn btn-sm" aria-disabled="true" style="opacity:.45;pointer-events:none;">下一页</span>
+    {% endif %}
+  </nav>
+{% endif %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block meta %}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ chapter.title }} · {{ book.title }}">
+  <meta property="og:description" content="{{ (book.summary or site.site_name) | truncate(120, true, '…') }}">
+  <meta property="og:url" content="{{ share_url }}">
+{% endblock %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ url_for('index') }}">{{ site.site_name }}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="{{ url_for('book_detail', book_slug=book.slug) }}">{{ book.title }}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">{{ chapter.title }}</span>
+  </nav>
+
+  <div class="page-head">
+    <h1>{% if chapter.title %}{{ chapter.title }}{% else %}未命名章{% endif %}</h1>
+    <p>
+      这一章下有 {{ numbered|length }} 节；点开任意一节阅读正文。
+      {% if chapter.status == 'draft' %}<strong>当前是草稿，访客看不到。</strong>{% endif %}
+    </p>
+  </div>
+
+  <div class="toolbar article-actions">
+    <button type="button" class="btn btn-sm" data-copy="{{ share_url }}">
+      <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5h10"/></svg>
+      复制链接
+    </button>
+    {% if current_user %}
+      <a class="btn btn-sm btn-primary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4Z"/><path d="M14 6l4 4"/></svg>
+        编辑这一章
+      </a>
+    {% endif %}
+  </div>
+
+  {% if numbered %}
+    <div class="card">
+      <ul class="chapter-list">
+        {% for s, no in numbered %}
+          <li>
+            <a class="chapter-row" href="{{ url_for('section_detail', book_slug=book.slug, chapter_slug=chapter.slug, section_slug=s.slug) }}">
+              <span class="chapter-index">{{ no }}</span>
+              <span class="chapter-main">
+                <span class="title">{{ s.title }}</span>
+                <span class="sub">{{ s.word_count }} 字 · v{{ s.current_version_no }}{% if s.format == "html" %} · HTML{% endif %}</span>
+              </span>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M7 4h7l4 4v12H7z"/><path d="M14 4v4h4"/></svg>
+        </span>
+        <h3>这一章还没有节</h3>
+        <p>{% if current_user %}去后台给这一章上传或新建节，发布后访客即可阅读。{% else %}内容正在整理中，稍后再来看看。{% endif %}</p>
+        {% if current_user %}
+          <a class="btn btn-primary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}">去编辑这一章</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

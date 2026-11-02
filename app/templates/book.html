@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block meta %}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ book.title }}">
+  <meta property="og:description" content="{{ (book.summary or site.site_name) | truncate(120, true, '…') }}">
+  <meta property="og:url" content="{{ share_url }}">
+  {% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
+{% endblock %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ url_for('index') }}">{{ site.site_name }}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    {% if book_group %}
+      <a href="{{ url_for('index') }}?group={{ book_group.slug }}">{{ book_group.title }}</a>
+      <span class="sep" aria-hidden="true">/</span>
+    {% endif %}
+    <span aria-current="page">{{ book.title }}</span>
+  </nav>
+
+  <section class="card book-hero">
+    {% if cover %}
+      <span class="book-cover-sm">
+        <img src="{{ cover }}" alt="{{ book.title }} 封面">
+      </span>
+    {% endif %}
+    <span class="book-icon" aria-hidden="true">
+      {%- if book.icon -%}
+        {{ book.icon }}
+      {%- else -%}
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z"/><path d="M8 3v18"/></svg>
+      {%- endif -%}
+    </span>
+    <div>
+      <h1>{{ book.title }}</h1>
+      {% if book.summary %}<p>{{ book.summary }}</p>{% endif %}
+      <div class="meta">
+        <span>{{ chapter_total }} 章 · {{ section_total }} 节</span>
+        <span>约 {{ total_words }} 字</span>
+        <span>更新于 {{ book.updated_at.strftime("%Y-%m-%d") }}</span>
+        {% if book.visibility == "unlisted" %}<span class="badge badge-warn">未列出</span>{% endif %}
+      </div>
+    </div>
+    <div class="book-hero-actions">
+      <button type="button" class="btn btn-sm" data-copy="{{ share_url }}">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5h10"/></svg>
+        复制链接
+      </button>
+      {% if current_user %}
+        <a class="btn btn-sm btn-primary" href="{{ root_path }}/admin/books/{{ book.id }}">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4Z"/><path d="M14 6l4 4"/></svg>
+          管理这个 Book
+        </a>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if directory %}
+    {% set doc_view = book.format == 'html' and book.html_view == 'document' %}
+    <div class="section-title">
+      <h2>目录</h2>
+      <span class="small muted">{{ chapter_total }} 章 · {{ section_total }} 节</span>
+    </div>
+    {% if doc_view %}
+      <p class="small muted">这本书按原始版式提供：点节标题会在新标签页里直接打开上传的 HTML 文档（带它自己的样式、脚本与导航）。</p>
+    {% endif %}
+    <div class="card">
+      <ul class="chapter-list">
+        {% for row in directory %}
+          {% set c = row.chapter %}
+          {% set items = row.sections %}
+          <li class="chapter-group">
+            {% set single = items|length == 1 %}
+            <a class="chapter-row chapter-group-head" href="{% if single and doc_view %}{{ url_for('section_raw', book_slug=book.slug, chapter_slug=c.slug, section_slug=items[0][0].slug) }}{% else %}{{ url_for('chapter_detail', book_slug=book.slug, chapter_slug=c.slug) }}{% endif %}"{% if single and doc_view %} target="_blank" rel="noopener"{% endif %}>
+              <span class="chapter-index">{{ row.no }}</span>
+              <span class="chapter-main">
+                <span class="title">{{ c.title }}</span>
+                <span class="sub">{{ items|length }} 节 · 更新于 {{ c.updated_at.strftime("%Y-%m-%d") }}</span>
+              </span>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+            </a>
+            {% if items|length > 1 %}
+              <ul class="chapter-list chapter-sublist">
+                {% for s, no in items %}
+                  <li>
+                    <a class="chapter-row is-child" href="{% if doc_view and s.format == 'html' %}{{ url_for('section_raw', book_slug=book.slug, chapter_slug=c.slug, section_slug=s.slug) }}{% else %}{{ url_for('section_detail', book_slug=book.slug, chapter_slug=c.slug, section_slug=s.slug) }}{% endif %}"{% if doc_view and s.format == 'html' %} target="_blank" rel="noopener"{% endif %}>
+                      <span class="chapter-index">{{ no }}</span>
+                      <span class="chapter-main">
+                        <span class="title">{{ s.title }}</span>
+                        <span class="sub">{{ s.word_count }} 字{% if s.format == "html" %} · HTML{% endif %}{% if doc_view and s.format == "html" %} · 原始版式{% endif %}</span>
+                      </span>
+                      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M7 4h7l4 4v12H7z"/><path d="M14 4v4h4"/></svg>
+        </span>
+        <h3>这个 Book 还没有已发布的章</h3>
+        <p>{% if current_user %}去管理端新建一章并上传节，发布后访客即可阅读。{% else %}内容正在整理中，稍后再来看看。{% endif %}</p>
+        {% if current_user %}
+          <a class="btn btn-primary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/new">新增章</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="{{ root_path }}/admin/groups">分组</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">{% if group %}编辑分组{% else %}新建分组{% endif %}</span>
+  </nav>
+
+  <div class="page-head page-head-row">
+    <div>
+      <h1>{% if group %}编辑「{{ group.title }}」{% else %}新建分组{% endif %}</h1>
+      <p>
+        分组是首页的分区：标题显示在分区标题栏，简介显示在标题下方，图标显示在标题左侧。
+        位置由「分组」列表页的上移/下移调整，新建的分组排在最后。
+      </p>
+    </div>
+    <div class="toolbar">
+      <a class="btn btn-secondary" href="{{ root_path }}/admin/groups">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        返回分组列表
+      </a>
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="alert alert-error" role="alert">
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      <div>{{ error }}</div>
+    </div>
+  {% endif %}
+
+  <form class="form form-wide" method="post" action="{% if group %}{{ root_path }}/admin/groups/{{ group.id }}/edit{% else %}{{ root_path }}/admin/groups/new{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <div class="field">
+      <label for="title">标题 <span class="req" aria-hidden="true">*</span></label>
+      <input type="text" id="title" name="title" value="{{ form.title }}" maxlength="120" required placeholder="例如：基础设施">
+      <span class="hint">首页分区标题就显示这段文字，建议 2～8 个字。</span>
+    </div>
+
+    <div class="field">
+      <label for="slug">访问标识</label>
+      {% if is_default %}
+        <input type="text" id="slug" value="{{ form.slug }}" readonly aria-describedby="slug-fixed">
+        <input type="hidden" name="slug" value="{{ form.slug }}">
+        <span class="hint" id="slug-fixed">
+          默认分组的访问标识<strong>固定为 <span class="mono">default</span></strong>，由系统创建并随系统存在，
+          不能修改也不能删除；标题、简介与图标仍可改。
+        </span>
+      {% else %}
+        <input type="text" id="slug" name="slug" value="{{ form.slug }}" maxlength="160" placeholder="留空按标题自动生成">
+        <span class="hint">
+          分组的访问标识用于后台筛选地址 <span class="mono">/admin?group=&lt;访问标识&gt;</span> 与管理 API，
+          <strong>不会出现在读者地址栏</strong>（读者看到的是分组标题）。与已有分组重名时自动追加 -2、-3。
+        </span>
+      {% endif %}
+    </div>
+
+    <div class="field">
+      <label for="description">简介</label>
+      <textarea id="description" name="description" rows="3" maxlength="500" placeholder="一句话说明这个分组放什么内容">{{ form.description }}</textarea>
+      <span class="hint">显示在首页分区标题下方，可留空。</span>
+    </div>
+
+    <div class="field">
+      <label for="icon">图标</label>
+      <div class="emoji-input">
+        <span class="emoji-preview" data-emoji-preview aria-hidden="true">
+          {%- if form.icon -%}
+            {{ form.icon }}
+          {%- else -%}
+            <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg>
+          {%- endif -%}
+        </span>
+        <input type="text" id="icon" name="icon" value="{{ form.icon }}" maxlength="16" placeholder="点选下方图标，或直接粘贴一个 emoji">
+        <button type="button" class="btn btn-sm btn-ghost" data-emoji-clear>清空</button>
+      </div>
+      <span class="hint">留空时首页分区标题不带图标。</span>
+
+      <details class="emoji-picker">
+        <summary>从预置图标中选择（{{ emoji_total }} 个）</summary>
+        {% for group_name, items in emoji_groups %}
+          <div class="emoji-group">
+            <p class="emoji-group-title">{{ group_name }}</p>
+            <div class="emoji-grid">
+              {% for emoji, label in items %}
+                <button type="button" class="emoji-option" data-emoji="{{ emoji }}" title="{{ label }}" aria-label="{{ group_name }}：{{ label }}">{{ emoji }}</button>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </details>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7"/><path d="M8 14h8"/></svg>
+        {% if group %}保存修改{% else %}创建分组{% endif %}
+      </button>
+      <a class="btn btn-ghost" href="{{ root_path }}/admin/groups">取消</a>
+    </div>
+  </form>
+
+  {% if group %}
+    <div class="danger-zone">
+      <h2>危险操作</h2>
+      {% if is_default %}
+        <p>
+          这是<strong>默认分组</strong>：由系统创建并随系统存在，是「没有指定分组」时的兜底，
+          <strong>不能删除</strong>，访问标识也固定为 <span class="mono">default</span>。
+          当前有 <strong>{{ book_count }}</strong> 个 Book 以它为归属。
+        </p>
+      {% else %}
+        <p>
+          当前分组下有 <strong>{{ book_count }}</strong> 个 Book。
+          只有没有 Book 的分组能删除，且至少要保留一个分组；先把 Book 改到别的分组再回来删。
+        </p>
+        <form class="inline-form" method="post" action="{{ root_path }}/admin/groups/{{ group.id }}/delete" data-confirm="确认删除分组「{{ group.title }}」？只有空分组能删除。">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-danger">
+            <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+            删除此分组
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}

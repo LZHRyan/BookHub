@@ -1,0 +1,116 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">分组</span>
+  </nav>
+
+  <div class="page-head page-head-row">
+    <div>
+      <h1>分组</h1>
+      <p>
+        分组决定首页的分区与先后顺序，每个 Book 必须属于且只属于一个分组。
+        组内顺序沿用「置顶 + 访问热度」，不在这里手工调整。
+        与 Book 内部的「章 → 节」是两回事：分组是 Book 的上一层。
+      </p>
+    </div>
+    <div class="toolbar">
+      <a class="btn btn-primary" href="{{ root_path }}/admin/groups/new">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        新建分组
+      </a>
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="alert alert-error" role="alert">
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      <div>{{ error }}</div>
+    </div>
+  {% endif %}
+
+  <div class="section-title">
+    <h2>分组列表</h2>
+    <span class="small muted">共 {{ groups|length }} 个分组 · {{ book_total }} 个 Book</span>
+  </div>
+
+  {% if groups %}
+    <div class="admin-card-grid">
+      {% for item in groups %}
+        <article class="card admin-card group-card">
+          <header class="admin-card-head">
+            <span class="admin-card-icon" aria-hidden="true">
+              {% if item.group.icon %}{{ item.group.icon }}{% else %}
+                <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>
+              {% endif %}
+            </span>
+            <div class="admin-card-title">
+              <h3><a href="{{ root_path }}/admin/groups/{{ item.group.id }}/edit">{{ item.group.title }}</a></h3>
+              <span class="small faint">访问标识</span>
+              <span class="mono small faint">{{ item.group.slug }}</span>
+            </div>
+            <div class="admin-card-tools">
+              {% for direction, label, path in [(-1, '上移', 'M12 19V5M6 11l6-6 6 6'), (1, '下移', 'M12 5v14M6 13l6 6 6-6')] %}
+                <form class="inline-form" method="post" action="{{ root_path }}/admin/groups/{{ item.group.id }}/move">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="direction" value="{{ direction }}">
+                  <button type="submit" class="btn btn-icon btn-sm" aria-label="{{ label }}分组「{{ item.group.title }}」" title="{{ label }}">
+                    <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ path }}"/></svg>
+                  </button>
+                </form>
+              {% endfor %}
+            </div>
+          </header>
+
+          <p class="admin-card-desc">{{ item.group.description or '暂无简介' }}</p>
+
+          <div class="admin-card-meta">
+            {% if item.is_default %}
+              <span class="badge badge-accent" title="系统创建并随系统存在，不能删除、访问标识固定">系统内置</span>
+            {% endif %}
+            <span class="badge">
+              <a href="{{ root_path }}/admin?group={{ item.group.slug }}">{{ item.book_count }}</a> 本
+            </span>
+            {% if item.deleted_count %}
+              <span class="badge badge-warn" title="回收站里的 Book 仍占用这个分组，删组前要先清空">回收站 {{ item.deleted_count }}</span>
+            {% endif %}
+          </div>
+
+          <footer class="admin-card-foot">
+            <a class="btn btn-sm" href="{{ root_path }}/admin?group={{ item.group.slug }}">查看 Book</a>
+            <a class="btn btn-sm" href="{{ root_path }}/admin/groups/{{ item.group.id }}/edit">
+              <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4Z"/><path d="M14 6l4 4"/></svg>
+              改名
+            </a>
+            {% if not item.is_default %}
+              <form class="inline-form" method="post" action="{{ root_path }}/admin/groups/{{ item.group.id }}/delete" data-confirm="确认删除分组「{{ item.group.title }}」？只有没有 Book 的分组能删除，且至少要保留一个分组。">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-danger">
+                  <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+                  删除
+                </button>
+              </form>
+            {% endif %}
+          </footer>
+        </article>
+      {% endfor %}
+    </div>
+    <p class="small muted">
+      「默认分组」由系统创建并随系统存在，<strong>不能删除</strong>，访问标识固定为 <span class="mono">default</span>
+      （标题、简介、图标仍可改）。其余分组删除前先把组里的 Book 改到别的分组（Book 编辑页的「分组」下拉）；
+      只剩一个分组时也不能再删，否则 Book 无处安放。
+    </p>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg>
+        </span>
+        <h3>还没有分组</h3>
+        <p>先新建一个分组，再把 Book 归进去；首页会按分组顺序分区展示。</p>
+        <a class="btn btn-primary" href="{{ root_path }}/admin/groups/new">新建分组</a>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

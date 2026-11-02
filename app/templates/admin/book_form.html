@@ -1,0 +1,249 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    {% if mode == 'edit' and book %}
+      <a href="{{ root_path }}/admin/books/{{ book.id }}">{{ book.title }}</a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span aria-current="page">编辑</span>
+    {% else %}
+      <span aria-current="page">新建 Book</span>
+    {% endif %}
+  </nav>
+
+  <div class="page-head">
+    <h1>{% if mode == 'edit' and book %}编辑「{{ book.title }}」{% else %}新建 Book{% endif %}</h1>
+    <p>
+      {% if mode == 'edit' and book %}
+        修改标题、访问标识、简介与展示设置；保存后立即生效，前台链接会随访问标识变化。
+      {% else %}
+        一个 Book 是一组文档的集合，整本使用同一种文档类型（Markdown 或 HTML）；访问地址会自动生成，无需填写。
+      {% endif %}
+    </p>
+  </div>
+
+  {% if error %}
+    <div class="alert alert-error" role="alert">
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      <div>{{ error }}</div>
+    </div>
+  {% endif %}
+
+  <form class="form form-wide" method="post" action="{% if mode == 'edit' and book %}{{ root_path }}/admin/books/{{ book.id }}/edit{% else %}{{ root_path }}/admin/books/new{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <section class="card">
+      <div class="card-header">
+        <h2>基本信息</h2>
+      </div>
+      <div class="card-body">
+        <div class="form form-wide">
+          <div class="field">
+            <label for="title">标题 <span class="req" aria-hidden="true">*</span></label>
+            <input type="text" id="title" name="title" value="{{ form.title }}" maxlength="200" required>
+            <span class="hint">显示在首页卡片、Book 页标题与搜索结果里。</span>
+          </div>
+
+          <div class="field">
+            <label for="group">分组 <span class="req" aria-hidden="true">*</span></label>
+            <select id="group" name="group" required>
+              <option value="" {% if not form.group %}selected{% endif %}>请选择分组</option>
+              {% for g in groups %}
+                <option value="{{ g.id }}" {% if form.group|string == g.id|string %}selected{% endif %}>{% if g.icon %}{{ g.icon }} {% endif %}{{ g.title }}</option>
+              {% endfor %}
+            </select>
+            <span class="hint">
+              决定这本书出现在首页的哪个分区。Book 必须属于且只属于一个分组，没有「未分组」状态；
+              分组本身在<a href="{{ root_path }}/admin/groups">分组管理</a>里新建与排序。
+            </span>
+          </div>
+
+          {% if mode == 'edit' %}
+            <div class="field">
+              <label for="slug">访问标识（网址里的短名）</label>
+              <input type="text" id="slug" name="slug" value="{{ form.slug }}" maxlength="160"
+                     {% if book and book.is_builtin %}readonly{% endif %}>
+              <span class="hint">
+                访问标识就是读者网址里的那一段英文短名，例如 <span class="mono">/b/handbook</span> 里的
+                <span class="mono">handbook</span>。同一站点内唯一，只允许小写字母、数字与连字符。
+                <strong>修改后旧链接会立即失效</strong>；纯中文标题生成的 <span class="mono">book-3f7a1c</span>
+                这类随机串可以在这里改成英文或拼音。
+              </span>
+              {% if book and book.is_builtin %}
+                <span class="hint">
+                  这是<strong>内置指南</strong>：访问标识固定为 <span class="mono">{{ book.slug }}</span>，
+                  外部工具（MCP / SKILL / 脚本）按它拼地址，所以不能修改。
+                </span>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          <div class="field">
+            <label for="summary">简介</label>
+            <textarea id="summary" name="summary" maxlength="2000" rows="4" placeholder="一句话说明这个 Book 收集什么内容">{{ form.summary }}</textarea>
+            <span class="hint">显示在首页卡片与 Book 页顶部，可留空。</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>展示设置</h2>
+      </div>
+      <div class="card-body">
+        <div class="form form-wide">
+          <div class="field">
+            <label for="icon">图标</label>
+            <div class="emoji-input">
+              <span class="emoji-preview" data-emoji-preview aria-hidden="true">
+                {%- if form.icon -%}
+                  {{ form.icon }}
+                {%- else -%}
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z"/><path d="M8 3v18"/></svg>
+                {%- endif -%}
+              </span>
+              <input type="text" id="icon" name="icon" value="{{ form.icon }}" maxlength="16" placeholder="点选下方图标，或直接粘贴一个 emoji">
+              <button type="button" class="btn btn-sm btn-ghost" data-emoji-clear>清空</button>
+            </div>
+            <span class="hint">留空时前台显示默认矢量图标；面板里的图标随系统字体渲染，不同系统外观略有差异。</span>
+
+            {% if mode == 'edit' %}
+              <div class="field">
+                <label>封面</label>
+                <div class="cover-row">
+                  {% if cover %}
+                    <span class="cover-preview"><img src="{{ cover }}" alt="{{ book.title }} 封面"></span>
+                    <span class="small muted">首页卡片与 Book 页都会优先显示这张图。</span>
+                  {% else %}
+                    <span class="cover-preview cover-preview-empty">未设置</span>
+                    <span class="small muted">去「媒体库」上传图片后点「设为封面」。</span>
+                  {% endif %}
+                  <a class="btn btn-sm btn-ghost" href="{{ root_path }}/admin/books/{{ book.id }}/media">打开媒体库</a>
+                </div>
+              </div>
+            {% endif %}
+
+            <details class="emoji-picker">
+              <summary>从预置图标中选择（{{ emoji_total }} 个）</summary>
+              {% for group_name, items in emoji_groups %}
+                <div class="emoji-group">
+                  <p class="emoji-group-title">{{ group_name }}</p>
+                  <div class="emoji-grid">
+                    {% for emoji, label in items %}
+                      <button type="button" class="emoji-option" data-emoji="{{ emoji }}" title="{{ label }}" aria-label="{{ group_name }}：{{ label }}">{{ emoji }}</button>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+            </details>
+          </div>
+
+          <div class="field">
+            <fieldset class="choices" {% if mode == 'edit' and chapter_total %}aria-describedby="format-locked"{% endif %}>
+              <legend>文档类型 <span class="req" aria-hidden="true">*</span></legend>
+              <label class="choice">
+                <input type="radio" name="format" value="markdown" required {% if form.format != 'html' %}checked{% endif %} {% if mode == 'edit' and chapter_total %}disabled{% endif %}>
+                <span class="choice-card">
+                  <strong>Markdown</strong>
+                  <small>.md 文件，站内渲染（表格、代码高亮、目录）</small>
+                </span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="format" value="html" {% if form.format == 'html' %}checked{% endif %} {% if mode == 'edit' and chapter_total %}disabled{% endif %}>
+                <span class="choice-card">
+                  <strong>HTML</strong>
+                  <small>.html 文件，白名单净化后展示</small>
+                </span>
+              </label>
+            </fieldset>
+            {% if mode == 'edit' and chapter_total %}
+              <input type="hidden" name="format" value="{{ book.format }}">
+              <span class="hint" id="format-locked">
+                这本书下已有 {{ chapter_total }} 个章，文档类型已锁定为
+                <strong>{{ 'HTML' if book.format == 'html' else 'Markdown' }}</strong>；整本书的节都按它渲染。
+                要换格式只能新建一本 Book。
+              </span>
+            {% else %}
+              <span class="hint">整本统一：这本书的所有节都只能是这个格式，上传也只接受对应扩展名；创建后不能再改。</span>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            <fieldset class="choices">
+              <legend>HTML 阅读方式</legend>
+              <label class="choice">
+                <input type="radio" name="html_view" value="document" {% if form.html_view != 'inline' %}checked{% endif %}>
+                <span class="choice-card">
+                  <strong>原始文档</strong>
+                  <small>默认。新标签页打开，保留文档自己的 CSS / JS / 导航</small>
+                </span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="html_view" value="inline" {% if form.html_view == 'inline' %}checked{% endif %}>
+                <span class="choice-card">
+                  <strong>站内安全渲染</strong>
+                  <small>移除脚本与自定义样式，保留站点目录</small>
+                </span>
+              </label>
+            </fieldset>
+            <span class="hint">
+              HTML 类型的 Book 默认按原始文档打开；Markdown 始终走站内渲染。
+              原始文档运行在浏览器沙箱里：脚本会真实执行，但读不到本站登录状态；
+              文档里的相对路径资源加载不到，请用内嵌 base64 或绝对 URL。
+            </span>
+          </div>
+
+          <div class="field">
+            <fieldset class="choices">
+              <legend>可见性</legend>
+              <label class="choice">
+                <input type="radio" name="visibility" value="public" {% if form.visibility != 'unlisted' %}checked{% endif %}>
+                <span class="choice-card">
+                  <strong>公开</strong>
+                  <small>出现在首页列表与搜索结果</small>
+                </span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="visibility" value="unlisted" {% if form.visibility == 'unlisted' %}checked{% endif %}>
+                <span class="choice-card">
+                  <strong>未列出</strong>
+                  <small>只能在知道链接时访问</small>
+                </span>
+              </label>
+            </fieldset>
+            <span class="hint">两种可见性都只展示已发布章节；草稿始终只有登录用户能看到。</span>
+          </div>
+
+          <p class="small muted">
+            首页顺序由系统自动决定：访问越频繁、创建越新的 Book 排得越靠前，无需手工设置权重。
+            具体权重可以在 Book 详情页看到。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7"/><path d="M8 14h8"/></svg>
+        {% if mode == 'edit' %}保存修改{% else %}创建 Book{% endif %}
+      </button>
+      <a class="btn btn-ghost" href="{% if book %}{{ root_path }}/admin/books/{{ book.id }}{% else %}{{ root_path }}/admin{% endif %}">取消</a>
+    </div>
+  </form>
+
+  {% if mode == 'edit' and book %}
+    <div class="danger-zone">
+      <h2>危险操作</h2>
+      <p>删除后 Book 及其章节会进入回收站，前台立即不可访问；之后可在回收站恢复。</p>
+      <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/delete" data-confirm="确认删除 Book「{{ book.title }}」？其中的章节会一起进入回收站。">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-danger">
+          <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+          删除此 Book
+        </button>
+      </form>
+    </div>
+  {% endif %}
+{% endblock %}

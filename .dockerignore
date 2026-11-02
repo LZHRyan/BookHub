@@ -1,0 +1,44 @@
+# 构建上下文排除清单。
+# 注意：后面的规则覆盖前面的，所以 `*.md` 之后必须再显式放回 README.md。
+
+# 依赖与虚拟环境
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 版本控制与工具目录
+.git/
+.gitignore
+.github/
+.acecode/
+.agents/
+
+# 本地数据与运行产物
+data/
+*.db
+*.db-wal
+*.db-shm
+backups/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# 密钥：绝不进镜像
+.env
+.env.*
+!.env.example
+
+# 文档、规格、测试不参与运行
+openspec/
+tests/
+docs/
+*.md
+!README.md
+
+# 其他
+*.log
+.DS_Store

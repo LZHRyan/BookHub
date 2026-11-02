@@ -1,0 +1,141 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">账号管理</span>
+  </nav>
+
+  <div class="page-head">
+    <h1>账号管理</h1>
+    <p>管理员可以管理内容、账号、站点设置并查看审计日志；编辑只能维护 Book、章与节。</p>
+  </div>
+
+  {% if error %}
+    <div class="alert alert-error" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <section class="card">
+    <div class="card-header">
+      <h2>新增账号</h2>
+      <span class="badge">用户名全站唯一</span>
+    </div>
+    <div class="card-body">
+      <form class="form form-wide" method="post" action="{{ root_path }}/admin/users/new">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="field-row">
+          <div class="field">
+            <label for="new-username">用户名 <span class="req" aria-hidden="true">*</span></label>
+            <input type="text" id="new-username" name="username" maxlength="64" required autocomplete="off">
+            <span class="hint">登录用，全站唯一，创建后不可修改。</span>
+          </div>
+          <div class="field">
+            <label for="new-display-name">显示名</label>
+            <input type="text" id="new-display-name" name="display_name" maxlength="120" placeholder="留空则显示用户名">
+            <span class="hint">显示在审计日志与页面右上角。</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="new-password">初始密码 <span class="req" aria-hidden="true">*</span></label>
+            <input type="password" id="new-password" name="password" required autocomplete="new-password">
+            <span class="hint">请通过安全渠道转交给本人，并提醒其尽快修改。</span>
+          </div>
+          <div class="field">
+            <fieldset class="choices">
+              <legend>角色</legend>
+              <label class="choice">
+                <input type="radio" name="role" value="editor" checked>
+                <span class="choice-card">
+                  <strong>编辑</strong>
+                  <small>只能维护 Book、章与节的内容</small>
+                </span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="role" value="admin">
+                <span class="choice-card">
+                  <strong>管理员</strong>
+                  <small>含账号、站点设置、审计与 Token</small>
+                </span>
+              </label>
+            </fieldset>
+            <span class="hint">管理员可管理账号、站点设置与审计日志。</span>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            创建账号
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <div class="section-title">
+    <h2>账号列表</h2>
+    <span class="badge">共 {{ users|length }} 个</span>
+  </div>
+  {% if users %}
+    <div class="user-list">
+      {% for u in users %}
+        <article class="card user-row">
+          <span class="user-avatar mono" aria-hidden="true">{{ (u.display_name or u.username)[:1] | upper }}</span>
+          <div class="user-row-main">
+            <h3>
+              <span class="mono">{{ u.username }}</span>
+              {% if current_user and u.id == current_user.id %}<span class="badge badge-accent">我</span>{% endif %}
+            </h3>
+            <span class="small faint">{{ u.display_name or '未设置显示名' }}</span>
+          </div>
+
+          <div class="user-badges">
+            {% if u.role == 'admin' %}
+              <span class="badge badge-ok">管理员</span>
+            {% else %}
+              <span class="badge">编辑</span>
+            {% endif %}
+            {% if u.is_active %}
+              <span class="badge badge-ok">启用</span>
+            {% else %}
+              <span class="badge badge-danger">停用</span>
+            {% endif %}
+          </div>
+
+          <span class="user-row-login small muted">
+            最近登录
+            {% if u.last_login_at %}{{ u.last_login_at.strftime("%Y-%m-%d %H:%M") }}{% else %}从未登录{% endif %}
+          </span>
+
+          <div class="user-row-actions">
+            {% if current_user and u.id == current_user.id %}
+              <button type="button" class="btn btn-sm" disabled aria-label="不能停用自己的账号" title="不能停用自己的账号">停用</button>
+            {% else %}
+              <form class="inline-form" method="post" action="{{ root_path }}/admin/users/{{ u.id }}/toggle" {% if u.is_active %}data-confirm="停用后「{{ u.username }}」将立即无法登录，确认停用？"{% endif %}>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm {% if u.is_active %}btn-danger{% endif %}">{% if u.is_active %}停用{% else %}启用{% endif %}</button>
+              </form>
+            {% endif %}
+            <form class="inline-form user-reset" method="post" action="{{ root_path }}/admin/users/{{ u.id }}/password">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <label class="sr-only" for="reset-pwd-{{ u.id }}">给 {{ u.username }} 设置新密码</label>
+              <input type="password" id="reset-pwd-{{ u.id }}" name="password" placeholder="新密码" required autocomplete="new-password">
+              <button type="submit" class="btn btn-sm">重置密码</button>
+            </form>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+    <p class="small muted">停用账号或重置密码会立即使该账号已登录的会话失效，需要重新登录。</p>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg>
+        </span>
+        <h3>还没有账号</h3>
+        <p>用上面的表单创建第一个账号；管理员可以管理账号、站点设置与审计日志。</p>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

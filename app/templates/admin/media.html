@@ -1,0 +1,164 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="{{ root_path }}/admin/books/{{ book.id }}">{{ book.title }}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">媒体库</span>
+  </nav>
+
+  <div class="page-head page-head-row">
+    <div>
+      <h1>媒体库</h1>
+      <p>
+        共 {{ items|length }} 个资源 · 已用 <strong>{{ usage_label }}</strong> / {{ quota_label }}
+        · 单文件上限 {{ max_label }}
+      </p>
+    </div>
+    <div class="toolbar">
+      <a class="btn btn-secondary" href="{{ root_path }}/admin/books/{{ book.id }}">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        返回 Book
+      </a>
+      <a class="btn btn-ghost" href="{{ root_path }}/b/{{ book.slug }}" target="_blank" rel="noopener">查看站点页</a>
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="alert alert-error" role="alert">
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      <div>{{ error }}</div>
+    </div>
+  {% endif %}
+
+  {% if stale %}
+    <div class="alert alert-warn" role="alert">
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 17H3L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+      <div>
+        <strong>正文里有 {{ stale|length }} 个失效的媒体地址</strong>（资源已删除，或 Book 改过访问标识）。这些图片在读者页面上会显示为空。
+        <ul class="stale-list">
+          {% for url in stale[:8] %}
+            <li class="mono small">{{ url }}</li>
+          {% endfor %}
+        </ul>
+        {% if stale|length > 8 %}<p class="small muted">还有 {{ stale|length - 8 }} 条未列出。</p>{% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header">
+      <h2>上传</h2>
+      <span class="small muted">也可以在节编辑器里直接粘贴截图或拖入文件</span>
+    </div>
+    <div class="card-body">
+      <div class="dropzone" data-media-upload data-upload-url="{{ root_path }}/admin/books/{{ book.id }}/media" data-csrf="{{ csrf_token }}" data-format="{{ book.format }}" data-book-slug="{{ book.slug }}">
+        <svg stroke="currentColor" class="icon icon-lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3h16v-3"/></svg>
+        <p><strong>拖入文件</strong>，或 <label class="link-label">点选文件<input type="file" multiple data-media-input hidden></label></p>
+        <p class="small muted">允许：{{ allowed_types }} · 单文件上限 {{ max_label }}</p>
+        <div class="media-status" data-media-status role="status" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h2>资源</h2>
+    <span class="small muted">删除是软删除：已发布的节里的图片仍会显示，地址不再公开可读</span>
+  </div>
+
+  {% if items %}
+    <div class="media-grid">
+      {% for item in items %}
+        <article class="media-card {% if item.asset.deleted_at %}is-deleted{% endif %}">
+          <div class="media-thumb">
+            {% if item.asset.kind == 'image' and not item.asset.deleted_at %}
+              <img src="{{ item.url }}" alt="{{ item.asset.filename }}" loading="lazy">
+            {% else %}
+              <span class="media-file-icon" aria-hidden="true">
+                <svg stroke="currentColor" class="icon icon-lg" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>
+              </span>
+            {% endif %}
+          </div>
+          <div class="media-body">
+            <p class="media-name truncate" title="{{ item.asset.filename }}">{{ item.asset.filename }}</p>
+            <p class="small muted">
+              {{ item.size_label }} · {{ item.asset.mime }}
+            </p>
+            <div class="toolbar">
+              {% if item.asset.deleted_at %}
+                <span class="badge badge-danger">已删除</span>
+              {% elif item.referenced %}
+                <span class="badge badge-ok">已被引用</span>
+              {% else %}
+                <span class="badge badge-warn">未引用</span>
+              {% endif %}
+            </div>
+            <div class="media-actions">
+              <button type="button" class="btn btn-sm" data-copy="{{ item.url }}">
+                <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5h10"/></svg>
+                复制地址
+              </button>
+              {% if item.asset.kind == 'image' and not item.asset.deleted_at %}
+                {% if cover_id == item.asset.id %}
+                  <span class="badge badge-accent">当前封面</span>
+                  <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/cover">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm">取消封面</button>
+                  </form>
+                {% else %}
+                  <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/cover">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="media_id" value="{{ item.asset.id }}">
+                    <button type="submit" class="btn btn-sm">设为封面</button>
+                  </form>
+                {% endif %}
+              {% endif %}
+              {% if not item.asset.deleted_at %}
+                <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/media/{{ item.asset.id }}/delete" data-confirm="确认删除「{{ item.asset.filename }}」？已发布的节里的图片仍会显示，但地址将不可公开访问。">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="btn btn-sm btn-danger">
+                    <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+                    删除
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg stroke="currentColor" class="icon icon-lg" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-6 6"/></svg>
+        </span>
+        <h3>还没有任何图片或附件</h3>
+        <p>在上面拖入文件，或在节编辑器里直接粘贴截图。</p>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header">
+      <h2>清理未引用资源</h2>
+    </div>
+    <div class="card-body">
+      {% if preview.deleted or preview.purged %}
+        <p>
+          可软删除的未引用资源 <strong>{{ preview.deleted|length }}</strong> 个（{{ preview.bytes }} 字节）；
+          已删除超过宽限期、可物理回收 <strong>{{ preview.purged|length }}</strong> 个（{{ preview.purged_bytes }} 字节）。
+        </p>
+        <p class="small muted">只清理没有被任何节（含历史版本、草稿、已删除的节）正文引用的资源。</p>
+        <form method="post" action="{{ root_path }}/admin/books/{{ book.id }}/media/cleanup" data-confirm="确认清理？未引用资源将被软删除，超期资源会被物理删除。">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="confirm" value="1">
+          <button type="submit" class="btn btn-danger">执行清理</button>
+        </form>
+      {% else %}
+        <p class="muted">没有可清理的资源：所有已上传资源都被正文引用，或还在宽限期内。</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

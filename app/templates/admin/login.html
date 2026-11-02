@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 · {{ site.site_name }}</title>
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', path='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}?v={{ asset_version }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='pygments.css') }}?v={{ asset_version }}">
+  <script src="{{ url_for('static', path='theme.js') }}?v={{ asset_version }}"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+
+  <main id="main" class="login-wrap">
+    <div class="login-card">
+      <a class="brand" href="{{ url_for('index') }}">
+        <span class="brand-mark" aria-hidden="true">B</span>
+        <span class="brand-text">{{ site.site_name }}</span>
+      </a>
+
+      <h1>登录管理后台</h1>
+      <p class="hint">登录后可以维护 Book、上传章节与查看历史版本。</p>
+
+      {% if error %}
+        <div class="alert alert-error" role="alert">{{ error }}</div>
+      {% endif %}
+
+      <form class="form" method="post" action="{{ root_path }}/admin/login">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <div class="field">
+          <label for="username">用户名</label>
+          <input type="text" id="username" name="username" value="{{ username }}" autocomplete="username" maxlength="64" required autofocus>
+        </div>
+        <div class="field">
+          <label for="password">密码</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-block">登录</button>
+        </div>
+      </form>
+
+      <p class="footnote">
+        账号由管理员在「账号管理」中创建 ·
+        <a href="{{ url_for('index') }}">返回站点</a>
+      </p>
+    </div>
+  </main>
+</body>
+</html>

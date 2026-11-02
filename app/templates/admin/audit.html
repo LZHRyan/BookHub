@@ -1,0 +1,111 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">审计日志</span>
+  </nav>
+
+  <div class="page-head">
+    <h1>审计日志</h1>
+    <p>记录谁在什么时候改了什么。按 Book ID 或章节 ID 筛选，可以快速定位一次改动的全部痕迹。</p>
+  </div>
+
+  <section class="card card-pad">
+    <form class="toolbar filter-bar" method="get" action="{{ root_path }}/admin/audit">
+      <div class="field">
+        <label for="f-book">Book ID</label>
+        <input type="text" id="f-book" name="book_id" value="{{ filters.book_id }}" inputmode="numeric" placeholder="如 3">
+      </div>
+      <div class="field">
+        <label for="f-chapter">章节 ID</label>
+        <input type="text" id="f-chapter" name="chapter_id" value="{{ filters.chapter_id }}" inputmode="numeric" placeholder="如 12">
+      </div>
+      <div class="field">
+        <label for="f-actor">操作者</label>
+        <input type="text" id="f-actor" name="actor" value="{{ filters.actor }}" placeholder="用户名或显示名">
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>
+        筛选
+      </button>
+      <a class="btn btn-ghost" href="{{ root_path }}/admin/audit">清除</a>
+      <a class="btn btn-secondary" href="{{ root_path }}/admin/audit.csv?book_id={{ filters.book_id }}&amp;actor={{ filters.actor }}">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>
+        导出 CSV
+      </a>
+    </form>
+  </section>
+
+  <div class="section-title">
+    <h2>操作记录</h2>
+    <span class="badge">共 {{ pager.total }} 条</span>
+  </div>
+
+  {% if entries %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="shrink">时间</th>
+            <th class="shrink">操作者</th>
+            <th class="shrink">动作</th>
+            <th>对象</th>
+            <th class="shrink">Book</th>
+            <th class="shrink">IP</th>
+            <th class="shrink">详情</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in entries %}
+            <tr>
+              <td class="small muted shrink">{{ item.log.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+              <td class="shrink">
+                <span class="small truncate" title="{{ item.log.actor_name }}">{{ item.log.actor_name or 'system' }}</span>
+              </td>
+              <td class="mono small shrink">{{ item.log.action }}</td>
+              <td>
+                <span class="small truncate" title="{{ item.log.target_type }} #{{ item.log.target_id }} {{ item.log.target_label }}">
+                  {{ item.log.target_label or '—' }}
+                </span>
+                <div class="cell-sub">{{ item.log.target_type }}{% if item.log.target_id %} #{{ item.log.target_id }}{% endif %}</div>
+              </td>
+              <td class="small mono shrink">
+                {% if item.log.book_id %}
+                  <a href="{{ root_path }}/admin/books/{{ item.log.book_id }}">{{ item.log.book_id }}</a>
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </td>
+              <td class="mono small muted shrink">{{ item.log.ip or '—' }}</td>
+              <td class="small">
+                {% if item.detail %}
+                  <details>
+                    <summary>查看</summary>
+                    <pre class="mono">{{ item.detail | tojson_pretty }}</pre>
+                  </details>
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% set query = '' %}
+    {% include "_pager.html" with context %}
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M5 4h9l4 4v12H5z"/><path d="M14 4v4h4"/><path d="M8 12h7M8 16h5"/></svg>
+        </span>
+        <h3>没有符合条件的记录</h3>
+        <p>换一个 Book ID、章节 ID 或操作者试试，或者清除筛选条件看全部日志。</p>
+        <a class="btn btn-secondary" href="{{ root_path }}/admin/audit">清除筛选</a>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

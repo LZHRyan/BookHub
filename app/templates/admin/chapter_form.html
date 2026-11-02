@@ -1,0 +1,291 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="{{ root_path }}/admin/books/{{ book.id }}">{{ book.title }}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">{% if chapter %}编辑章{% else %}新增章{% endif %}</span>
+  </nav>
+
+  <div class="page-head page-head-row">
+    <div>
+      <h1>{% if chapter %}编辑「{{ chapter.title }}」{% else %}新增章{% endif %}</h1>
+      <p>
+        {% if chapter %}
+          章只是容器：标题与访问标识在这里改，正文和版本都在它下面的节里。
+          {% if chapter.status == 'published' %}
+            <span class="badge badge-ok">已发布</span>
+          {% else %}
+            <span class="badge badge-warn">草稿</span>
+          {% endif %}
+        {% else %}
+          一次可以选多个 .md / .html 文件，每个文件会成为这一章里的一节；也可以直接粘贴一段正文。
+        {% endif %}
+      </p>
+    </div>
+    <div class="toolbar">
+      <a class="btn btn-secondary" href="{{ root_path }}/admin/books/{{ book.id }}">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        返回 Book
+      </a>
+      {% if chapter %}
+        <a class="btn btn-secondary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/versions">
+          <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          历史版本
+        </a>
+        <a class="btn btn-ghost" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/preview" target="_blank" rel="noopener">访客视角预览</a>
+        <a class="btn btn-primary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/new">
+          <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          新增节
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% include "admin/_notice.html" %}
+
+  {% if error %}
+    <div class="alert alert-error" role="alert">
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      <div>{{ error }}</div>
+    </div>
+  {% endif %}
+
+  <form class="form form-wide" method="post" enctype="multipart/form-data"
+        action="{% if chapter %}{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/info{% else %}{{ root_path }}/admin/books/{{ book.id }}/chapters/new{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <div class="form-grid">
+      <div class="form form-wide">
+        <div class="field">
+          <label for="title">章标题</label>
+          <input type="text" id="title" name="title" value="{{ form.title }}" maxlength="200" placeholder="例如：第 1 章 环境搭建">
+          <span class="hint">显示在目录与章页；不只是文件名。</span>
+        </div>
+
+        <div class="field">
+          <label for="slug">访问标识（网址里的短名）</label>
+          <input type="text" id="slug" name="slug" value="{{ form.slug }}" maxlength="160" placeholder="留空自动生成">
+          <span class="hint">
+            拼进章页网址：<span class="mono">/b/&lt;Book&gt;/&lt;章&gt;</span>，节页再加一层
+            <span class="mono">/&lt;节&gt;</span>。同一 Book 内唯一，只允许小写字母、数字与连字符。
+          </span>
+        </div>
+
+        {% if not chapter %}
+          <div class="field">
+            <label for="upload">正文文件（可多选）</label>
+            <div class="file-field" data-file-field>
+              <span class="file-field-icon" aria-hidden="true">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3h16v-3"/></svg>
+              </span>
+              <span class="file-field-body">
+                <strong>拖入正文文件，或点击选择</strong>
+                {% if book.format == 'html' %}
+                  <span class="file-field-names" data-file-names data-empty=".html / .htm 文件，可多选">.html / .htm 文件，可多选</span>
+                {% else %}
+                  <span class="file-field-names" data-file-names data-empty=".md / .markdown / .txt 文件，可多选">.md / .markdown / .txt 文件，可多选</span>
+                {% endif %}
+              </span>
+              <input class="file-field-input" type="file" id="upload" name="upload" multiple accept="{% if book.format == 'html' %}.html,.htm{% else %}.md,.markdown,.txt{% endif %}">
+            </div>
+            <span class="hint">
+              {% if book.format == 'html' %}这本书是 HTML 类型，只接受 .html / .htm{% else %}这本书是 Markdown 类型，只接受 .md / .markdown / .txt{% endif %}；每个文件生成一节（标题取文件名），单文件上限 {{ max_upload_bytes // 1024 // 1024 }} MiB。
+            </span>
+          </div>
+
+          <div class="field">
+            <label for="content">或者直接粘一段正文</label>
+            <div class="editor-shell" data-media-upload data-upload-url="{{ root_path }}/admin/books/{{ book.id }}/media" data-csrf="{{ csrf_token }}" data-format="{{ default_format }}" data-book-slug="{{ book.slug }}" data-target="#content">
+              <textarea id="content" name="content" rows="12" placeholder="粘贴 Markdown 或 HTML 正文；选了文件时以文件为准。">{{ form.content }}</textarea>
+              <div class="editor-dropbar">
+                <span class="small muted">正文里要插图或附件：粘贴截图，或把素材拖进正文区（插到光标处）；也可以</span>
+                <label class="link-label">点选素材<input type="file" multiple data-media-input hidden></label>
+                <span class="small muted">单个上限 {{ media_max_label }}</span>
+                <div class="media-status" data-media-status role="status" aria-live="polite"></div>
+              </div>
+            </div>
+            <span class="hint">粘贴的正文会作为这一章的第一节，标题取上面的章标题。</span>
+          </div>
+
+          <div class="field">
+            <fieldset class="choices">
+              <legend>文件编码</legend>
+              <label class="choice">
+                <input type="radio" name="encoding" value="" {% if not form.encoding %}checked{% endif %}>
+                <span class="choice-card">
+                  <strong>自动识别</strong>
+                  <small>先按 UTF-8 解，失败再按 GB18030</small>
+                </span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="encoding" value="utf-8" {% if form.encoding == 'utf-8' %}checked{% endif %}>
+                <span class="choice-card">
+                  <strong>UTF-8</strong>
+                  <small>绝大多数现代编辑器</small>
+                </span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="encoding" value="gb18030" {% if form.encoding == 'gb18030' %}checked{% endif %}>
+                <span class="choice-card">
+                  <strong>GB18030 / GBK</strong>
+                  <small>Windows 记事本、老版 Office 导出</small>
+                </span>
+              </label>
+            </fieldset>
+          </div>
+
+          <div class="field">
+            <fieldset class="choices">
+              <legend>初始状态</legend>
+              {% for s in statuses %}
+                <label class="choice">
+                  <input type="radio" name="status" value="{{ s }}" {% if form.status == s %}checked{% endif %}>
+                  <span class="choice-card">
+                    <strong>{% if s == 'published' %}已发布{% else %}草稿{% endif %}</strong>
+                    <small>{% if s == 'published' %}访客立即可见{% else %}只有登录用户可见{% endif %}</small>
+                  </span>
+                </label>
+              {% endfor %}
+            </fieldset>
+            <span class="hint">建议先存草稿，检查渲染效果后再发布。发布状态作用在章上。</span>
+          </div>
+        {% endif %}
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7"/><path d="M8 14h8"/></svg>
+            {% if chapter %}保存章信息{% else %}创建章{% endif %}
+          </button>
+          <a class="btn btn-ghost" href="{{ root_path }}/admin/books/{{ book.id }}">返回 Book</a>
+        </div>
+      </div>
+
+      <aside class="form-side">
+        <div class="card">
+          <div class="card-header">
+            <h2>格式说明</h2>
+          </div>
+          <div class="card-body">
+            <p style="margin:0 0 8px;">
+              <span class="badge {{ 'badge-warn' if book.format == 'html' else 'badge-accent' }}">
+                {{ 'HTML' if book.format == 'html' else 'Markdown' }}
+              </span>
+            </p>
+            <span class="hint">
+              整本统一：这本书的所有节都是 {{ 'HTML' if book.format == 'html' else 'Markdown' }}，
+              按同一套渲染与净化规则处理；上传时也只接受
+              {% if book.format == 'html' %}.html / .htm{% else %}.md / .markdown / .txt{% endif %}。
+            </span>
+          </div>
+        </div>
+
+        {% if chapter %}
+          <div class="card">
+            <div class="card-header">
+              <h2>状态</h2>
+              <span class="badge">{{ sections|length }} 节</span>
+            </div>
+            <div class="card-body">
+              <div class="toolbar">
+                {% if chapter.status == 'published' %}
+                  <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/status" data-confirm="撤回后访客将看不到这一章及其所有节，确认撤回？">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="status" value="draft">
+                    <button type="submit" class="btn btn-sm">撤回为草稿</button>
+                  </form>
+                {% else %}
+                  <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/status">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="status" value="published">
+                    <button type="submit" class="btn btn-sm btn-primary">发布整章</button>
+                  </form>
+                {% endif %}
+                <a class="btn btn-sm" href="{{ root_path }}/b/{{ book.slug }}/{{ chapter.slug }}" target="_blank" rel="noopener">打开站点页</a>
+              </div>
+              <span class="hint">章发布 → 其下所有节对外可见；章草稿 → 所有节 404。</span>
+            </div>
+          </div>
+        {% endif %}
+      </aside>
+    </div>
+  </form>
+
+  {% if chapter %}
+    <div class="section-title">
+      <h2>节</h2>
+      <span class="small muted">这一章下的文件；每节有独立的正文与版本</span>
+    </div>
+    {% if sections %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="shrink">#</th>
+              <th>标题</th>
+              <th class="shrink">格式</th>
+              <th class="shrink">字数</th>
+              <th class="shrink">版本</th>
+              <th class="shrink">更新时间</th>
+              <th class="col-actions">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in sections %}
+              <tr>
+                <td class="num shrink">{{ loop.index }}</td>
+                <td>
+                  <a class="cell-title" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ s.id }}">{{ s.title }}</a>
+                  <div class="cell-sub truncate">访问标识 <span class="mono">{{ s.slug }}</span></div>
+                </td>
+                <td class="shrink">
+                  <span class="badge {{ 'badge-warn' if s.format == 'html' else 'badge-accent' }}">{{ 'HTML' if s.format == 'html' else 'Markdown' }}</span>
+                </td>
+                <td class="num shrink">{{ s.word_count }}</td>
+                <td class="num shrink">v{{ s.current_version_no }}</td>
+                <td class="num shrink">{{ s.updated_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                <td class="col-actions">
+                  <div class="actions">
+                    <a class="btn btn-sm" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ s.id }}">编辑</a>
+                    <a class="btn btn-sm" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ s.id }}/versions">版本</a>
+                    <span class="inline-group">
+                      {% for direction, label, path in [(-1, '上移', 'M12 19V5M6 11l6-6 6 6'), (1, '下移', 'M12 5v14M6 13l6 6 6-6')] %}
+                        <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ s.id }}/move">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                          <input type="hidden" name="direction" value="{{ direction }}">
+                          <button type="submit" class="btn btn-icon btn-sm" aria-label="{{ label }}「{{ s.title }}」" title="{{ label }}">
+                            <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ path }}"/></svg>
+                          </button>
+                        </form>
+                      {% endfor %}
+                    </span>
+                    {% if book.is_builtin %}
+                      <span class="small faint" title="内置指南的节不能删除：可以改正文、加节、调顺序">内置 · 不可删除</span>
+                    {% else %}
+                      <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ s.id }}/delete" data-confirm="确认删除节「{{ s.title }}」？删除后这一节立即对访客消失。">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="card">
+        <div class="empty">
+          <span class="empty-icon" aria-hidden="true">
+            <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M7 4h7l4 4v12H7z"/><path d="M14 4v4h4"/></svg>
+          </span>
+          <h3>这一章还没有节</h3>
+          <p>章只是目录行，访客页需要有节才有正文。</p>
+          <a class="btn btn-primary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/new">新增第一节</a>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+{% endblock %}

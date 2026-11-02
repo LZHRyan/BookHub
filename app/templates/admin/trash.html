@@ -1,0 +1,147 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">回收站</span>
+  </nav>
+
+  <div class="page-head">
+    <h1>回收站</h1>
+    <p>删除的 Book 与章会先放在这里，恢复后按原访问标识重新可读。</p>
+  </div>
+
+  <div class="alert alert-info">
+    回收站内容不会出现在前台与 API：Book 或章一旦被删除，访客与只读接口立即访问不到，只有恢复后才会重新可见。
+  </div>
+
+  <div class="section-title">
+    <h2>已删除的 Book</h2>
+    <span class="badge">{{ deleted_books|length }} 个</span>
+  </div>
+  {% if deleted_books %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>标题</th>
+            <th class="shrink">访问标识</th>
+            <th class="shrink">可见性</th>
+            <th class="shrink">删除时间</th>
+            <th class="shrink">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in deleted_books %}
+            <tr>
+              <td>
+                <a class="cell-title" href="{{ root_path }}/admin/books/{{ b.id }}">{{ b.icon }} {{ b.title }}</a>
+                {% if b.summary %}
+                  <div class="cell-sub"><span class="truncate" title="{{ b.summary }}">{{ b.summary }}</span></div>
+                {% endif %}
+              </td>
+              <td class="shrink">
+                <span class="mono small truncate" title="{{ b.slug }}">{{ b.slug }}</span>
+              </td>
+              <td class="shrink">
+                {% if b.visibility == 'unlisted' %}
+                  <span class="badge badge-warn">未列出</span>
+                {% else %}
+                  <span class="badge badge-ok">公开</span>
+                {% endif %}
+              </td>
+              <td class="small muted shrink">{% if b.deleted_at %}{{ b.deleted_at.strftime("%Y-%m-%d %H:%M") }}{% else %}—{% endif %}</td>
+              <td class="shrink">
+                <div class="actions">
+                  <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ b.id }}/restore" data-confirm="确认恢复 Book「{{ b.title }}」？恢复后它会按原 slug 重新出现在前台与 API。">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-secondary">
+                      <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v5h5"/></svg>
+                      恢复
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+        </span>
+        <h3>回收站里没有已删除的 Book</h3>
+        <p>在内容管理里删除的 Book 会先进入这里，可以随时恢复。</p>
+        <a class="btn btn-secondary" href="{{ root_path }}/admin">回到内容管理</a>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="section-title">
+    <h2>已删除的章</h2>
+    <span class="badge">{{ deleted_chapters|length }} 个</span>
+  </div>
+  {% if deleted_chapters %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>标题</th>
+            <th class="shrink">所属 Book</th>
+            <th class="shrink">访问标识</th>
+            <th class="shrink">状态</th>
+            <th class="shrink">删除时间</th>
+            <th class="shrink">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for chapter, book in deleted_chapters %}
+            <tr>
+              <td>
+                <span class="cell-title truncate" title="{{ chapter.title }}">{{ chapter.title }}</span>
+              </td>
+              <td class="shrink">
+                <a href="{{ root_path }}/admin/books/{{ book.id }}">{{ book.title }}</a>
+              </td>
+              <td class="shrink">
+                <span class="mono small truncate" title="{{ chapter.slug }}">{{ chapter.slug }}</span>
+              </td>
+              <td class="shrink">
+                {% if chapter.status == 'published' %}
+                  <span class="badge badge-ok">已发布</span>
+                {% else %}
+                  <span class="badge badge-warn">草稿</span>
+                {% endif %}
+              </td>
+              <td class="small muted shrink">{% if chapter.deleted_at %}{{ chapter.deleted_at.strftime("%Y-%m-%d %H:%M") }}{% else %}—{% endif %}</td>
+              <td class="shrink">
+                <div class="actions">
+                  <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/restore" data-confirm="确认恢复章「{{ chapter.title }}」？恢复后它会带着自己的节回到「{{ book.title }}」的章列表。">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-secondary">
+                      <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v5h5"/></svg>
+                      恢复
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M7 4h7l4 4v12H7z"/><path d="M14 4v4h4"/></svg>
+        </span>
+        <h3>回收站里没有已删除的章</h3>
+        <p>在 Book 详情里删除的章会先进入这里，恢复后会回到原 Book。</p>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

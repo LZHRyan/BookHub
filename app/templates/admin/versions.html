@@ -1,0 +1,180 @@
+{% extends "admin/base.html" %}
+
+{% macro version_table(section, versions, current_no) %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="shrink">版本</th>
+          <th>标题</th>
+          <th class="shrink">格式</th>
+          <th>备注</th>
+          <th class="shrink">操作者</th>
+          <th class="shrink">时间</th>
+          <th class="col-actions">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in versions %}
+          <tr>
+            <td class="mono small shrink">
+              v{{ v.version_no }}
+              {% if v.version_no == current_no %}<span class="badge badge-ok">当前</span>{% endif %}
+            </td>
+            <td><div class="truncate" title="{{ v.title }}">{{ v.title }}</div></td>
+            <td class="small shrink">{% if v.format == 'html' %}HTML{% else %}Markdown{% endif %}</td>
+            <td class="small muted"><div class="truncate" title="{{ v.note }}">{{ v.note or '—' }}</div></td>
+            <td class="small muted shrink">{% if v.created_by %}#{{ v.created_by }}{% else %}系统{% endif %}</td>
+            <td class="small muted shrink">{{ v.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td class="col-actions">
+              <div class="actions">
+                <a class="btn btn-sm" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ section.id }}/versions/{{ v.version_no }}">查看</a>
+                {% if v.version_no != current_no %}
+                  <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ section.id }}/rollback/{{ v.version_no }}" data-confirm="确认把「{{ section.title }}」回滚到 v{{ v.version_no }}？回滚会生成一个新版本，当前内容仍可在历史里找回。">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-danger">回滚</button>
+                  </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endmacro %}
+
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="{{ root_path }}/admin/books/{{ book.id }}">{{ book.title }}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}">{{ chapter.title }}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">历史版本</span>
+  </nav>
+
+  {% if section %}
+    <div class="page-head">
+      <h1>历史版本</h1>
+      <p>每次替换这一节的内容都会留下一个版本，可以对比任意两个版本，也可以回滚到其中任意一个。</p>
+    </div>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>{{ section.title }}</h2>
+        <span class="badge badge-accent">当前版本 v{{ section.current_version_no }}</span>
+      </div>
+      <div class="card-body">
+        <div class="toolbar">
+          <a class="btn btn-sm btn-secondary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ section.id }}">
+            <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+            返回节编辑
+          </a>
+          <a class="btn btn-sm btn-ghost" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/versions">本章各节版本</a>
+          <span class="badge">共 {{ versions|length }} 个版本</span>
+          <span class="badge">章 · {{ chapter.title }}</span>
+        </div>
+      </div>
+    </section>
+
+    {% if versions %}
+      <div class="section-title">
+        <h2>版本对比</h2>
+        <span class="small muted">选两个版本，逐行查看差异</span>
+      </div>
+      <section class="card card-pad">
+        <form class="toolbar filter-bar" method="get" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ section.id }}/diff">
+          <div class="field">
+            <label for="diff-a">旧版本（左）</label>
+            <select id="diff-a" name="a">
+              {% for v in versions %}
+                <option value="{{ v.version_no }}" {% if v.version_no == versions[-1].version_no %}selected{% endif %}>v{{ v.version_no }} · {{ v.created_at.strftime('%Y-%m-%d %H:%M') }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="diff-b">新版本（右）</label>
+            <select id="diff-b" name="b">
+              {% for v in versions %}
+                <option value="{{ v.version_no }}" {% if v.version_no == versions[0].version_no %}selected{% endif %}>v{{ v.version_no }} · {{ v.created_at.strftime('%Y-%m-%d %H:%M') }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">对比</button>
+        </form>
+      </section>
+
+      <div class="section-title">
+        <h2>版本列表</h2>
+        <span class="small muted">共 {{ versions|length }} 条，新的在前</span>
+      </div>
+      {{ version_table(section, versions, section.current_version_no) }}
+      <p class="small muted">回滚不会覆盖历史：它把旧版本内容写入并生成一个新的版本号，所以随时可以再回滚回来。</p>
+    {% else %}
+      <div class="section-title">
+        <h2>版本列表</h2>
+      </div>
+      <div class="card">
+        <div class="empty">
+          <span class="empty-icon" aria-hidden="true">
+            <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/><path d="M17.5 15.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>
+          </span>
+          <h3>这一节还没有版本记录</h3>
+          <p>节创建时会自动留下第一个版本；之后每次替换正文都会新增一条。</p>
+          <a class="btn btn-secondary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ section.id }}">回到节编辑</a>
+        </div>
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="page-head">
+      <h1>历史版本</h1>
+      <p>版本按节记：这一章下的每一节各自有 v1、v2……，互不影响。</p>
+    </div>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>{{ chapter.title }}</h2>
+        <span class="badge">{{ section_rows|length }} 节</span>
+      </div>
+      <div class="card-body">
+        <div class="toolbar">
+          <a class="btn btn-sm btn-secondary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}">
+            <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+            返回章节
+          </a>
+          <span class="badge">Book · {{ book.title }}</span>
+        </div>
+      </div>
+    </section>
+
+    {% if section_rows %}
+      {% for row in section_rows %}
+        <div class="section-title">
+          <h2>
+            {{ row.section.title }}
+            <span class="badge badge-accent">v{{ row.section.current_version_no }}</span>
+          </h2>
+          <span class="small muted">
+            共 {{ row.versions|length }} 个版本 ·
+            <a href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ row.section.id }}/versions">查看与对比</a>
+          </span>
+        </div>
+        {{ version_table(row.section, row.versions, row.section.current_version_no) }}
+      {% endfor %}
+      <p class="small muted">回滚只作用于一个节：章的状态（发布 / 草稿）不变。</p>
+    {% else %}
+      <div class="card">
+        <div class="empty">
+          <span class="empty-icon" aria-hidden="true">
+            <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M7 4h7l4 4v12H7z"/><path d="M14 4v4h4"/></svg>
+          </span>
+          <h3>这一章还没有节</h3>
+          <p>先给这一章新增一节，版本会跟着节一起产生。</p>
+          <a class="btn btn-primary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/new">新增第一节</a>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+{% endblock %}

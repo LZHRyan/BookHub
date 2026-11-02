@@ -1,0 +1,257 @@
+{% extends "admin/base.html" %}
+
+{% macro chapter_actions(c) %}
+  <div class="actions">
+    <a class="btn btn-sm" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ c.id }}">
+      <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4Z"/><path d="M14 6l4 4"/></svg>
+      章与节
+    </a>
+    <a class="btn btn-sm" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ c.id }}/sections/new">
+      <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      加节
+    </a>
+    <a class="btn btn-sm" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ c.id }}/versions">
+      <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      版本
+    </a>
+    <span class="inline-group">
+      {% for direction, label, path in [(-1, '上移', 'M12 19V5M6 11l6-6 6 6'), (1, '下移', 'M12 5v14M6 13l6 6 6-6')] %}
+        <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ c.id }}/move">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="direction" value="{{ direction }}">
+          <button type="submit" class="btn btn-icon btn-sm" aria-label="{{ label }}「{{ c.title }}」" title="{{ label }}">
+            <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ path }}"/></svg>
+          </button>
+        </form>
+      {% endfor %}
+    </span>
+    {% if c.status == 'published' %}
+      <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ c.id }}/status" data-confirm="撤回后访客将看不到「{{ c.title }}」及其所有节，确认撤回为草稿？">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="status" value="draft">
+        <button type="submit" class="btn btn-sm">
+          <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>
+          撤回
+        </button>
+      </form>
+    {% else %}
+      <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ c.id }}/status">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="status" value="published">
+        <button type="submit" class="btn btn-sm">
+          <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+          发布
+        </button>
+      </form>
+    {% endif %}
+    {% if book.is_builtin %}
+      <span class="small faint" title="内置指南的章与节不能删除：可以改内容、调顺序、撤回发布">内置 · 不可删除</span>
+    {% else %}
+      <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ c.id }}/delete" data-confirm="确认删除章「{{ c.title }}」？它下面的节会一起下架，删除后进入回收站可恢复。">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-sm btn-danger">
+          <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+          删除
+        </button>
+      </form>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">{{ book.title }}</span>
+  </nav>
+
+  <div class="page-head page-head-row">
+    <div>
+      <h1>{{ book.icon }} {{ book.title }}</h1>
+      <p>
+        共 {{ chapters|length }} 章 · {{ section_total }} 节 ·
+        草稿对访客不可见，发布后章下的所有节一起可见。
+      </p>
+    </div>
+    <div class="toolbar">
+      <a class="btn btn-primary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/new">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        新增章
+      </a>
+      <a class="btn btn-secondary" href="{{ root_path }}/admin/books/{{ book.id }}/media">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-6 6"/></svg>
+        媒体库
+      </a>
+      <a class="btn btn-secondary" href="{{ root_path }}/admin/books/{{ book.id }}/edit">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4Z"/><path d="M14 6l4 4"/></svg>
+        编辑 Book
+      </a>
+      <button type="button" class="btn btn-ghost" data-copy="{{ share_url }}">复制分享链接</button>
+      <a class="btn btn-ghost" href="{{ root_path }}/b/{{ book.slug }}" target="_blank" rel="noopener">
+        <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-8 8"/><path d="M18 14v6H4V6h6"/></svg>
+        查看站点页
+      </a>
+      <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/pin">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn {{ 'btn-primary' if book.pinned else 'btn-secondary' }}">
+          <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.5 5.5 6 .8-4.4 4.2 1.1 6-5.2-2.9-5.2 2.9 1.1-6L3.5 9.3l6-.8Z"/></svg>
+          {% if book.pinned %}取消置顶{% else %}置顶到首页{% endif %}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% include "admin/_notice.html" %}
+
+  {% if error %}
+    <div class="alert alert-error" role="alert">
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      <div>{{ error }}</div>
+    </div>
+  {% endif %}
+
+  {% if batch %}
+    {% set parts = batch.split(':') %}
+    {% set counts = parts[1].split(',') if parts|length > 1 else ['0', '0'] %}
+    <div class="alert {{ 'alert-warn' if counts[1] != '0' else 'alert-ok' }}" role="status">
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+      <div>
+        批量操作完成：成功 {{ counts[0] }} 条{% if counts[1] != '0' %}，失败 {{ counts[1] }} 条（可能已被他人删除或移动）{% endif %}。
+      </div>
+    </div>
+  {% endif %}
+
+  {% if book.deleted_at %}
+    <div class="alert alert-warn" role="alert">
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 17H3L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+      <div>
+        <strong>这个 Book 在回收站中</strong>（删除于 {{ book.deleted_at.strftime("%Y-%m-%d %H:%M") }}），前台无法访问；恢复后按原访问标识重新可读。
+        <form class="inline-form" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/restore">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-sm">
+            <svg stroke="currentColor" class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.4 2.6L3 8"/><path d="M3 3v5h5"/></svg>
+            恢复此 Book
+          </button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-body">
+      {% if book.summary %}
+        <p class="muted">{{ book.summary }}</p>
+      {% endif %}
+      <div class="toolbar">
+        <span class="small faint">访问地址</span>
+        <span class="mono small">/b/{{ book.slug }}</span>
+        {% if book.format == 'html' %}
+          <span class="badge badge-warn">默认 HTML</span>
+          {% if book.html_view == 'document' %}
+            <span class="badge">原始版式（新标签页）</span>
+          {% else %}
+            <span class="badge">站内安全渲染</span>
+          {% endif %}
+        {% else %}
+          <span class="badge badge-accent">默认 Markdown</span>
+        {% endif %}
+        {% if book.is_builtin %}
+          <span class="badge badge-accent">内置指南 · 不可删除</span>
+        {% endif %}
+        {% if book.visibility == 'unlisted' %}
+          <span class="badge badge-warn">未列出</span>
+        {% else %}
+          <span class="badge badge-ok">公开</span>
+        {% endif %}
+        <span class="badge">热度权重 {{ '%.1f'|format(stats.weight) }}</span>
+        <span class="badge">近 7 天 {{ stats.recent_views }} 次访问</span>
+        <span class="badge">累计 {{ stats.total_views }} 次访问</span>
+        <span class="small faint">创建 {{ book.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+        <span class="small faint">更新 {{ book.updated_at.strftime("%Y-%m-%d %H:%M") }}</span>
+      </div>
+      <p class="small muted" style="margin:12px 0 0;">
+        整本统一为 {{ 'HTML' if book.format == 'html' else 'Markdown' }}：所有节都按这一种格式渲染，
+        上传也只接受 {% if book.format == 'html' %}.html / .htm{% else %}.md / .markdown / .txt{% endif %}；
+        有章之后类型不能再改。
+      </p>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h2>章</h2>
+    <span class="small muted">一章一行；点「章与节」维护它下面的节。拖动手柄可调整章的先后。</span>
+  </div>
+
+  <form id="batch-form" class="batch-bar" method="post" action="{{ root_path }}/admin/books/{{ book.id }}/chapters/batch" data-batch-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="confirm" value="0" data-batch-confirm>
+    <span class="small muted" data-batch-count>未选择章</span>
+    <button type="submit" class="btn btn-sm" name="action" value="publish">批量发布</button>
+    <button type="submit" class="btn btn-sm" name="action" value="unpublish">批量撤回</button>
+    <button type="submit" class="btn btn-sm btn-danger" name="action" value="delete" data-batch-delete>批量删除</button>
+  </form>
+
+  <div id="chapter-sort-root"
+       data-reorder-url="{{ root_path }}/admin/books/{{ book.id }}/chapters/reorder"
+       data-csrf="{{ csrf_token }}">
+  {% if chapters %}
+    <div class="table-wrap">
+      <table class="table">
+        <caption class="sr-only">章列表：序号、标题、状态、节数、更新时间与操作</caption>
+        <thead>
+          <tr>
+            <th scope="col" class="shrink"><span class="sr-only">选择</span></th>
+            <th scope="col" class="shrink">#</th>
+            <th scope="col">标题</th>
+            <th scope="col" class="shrink">状态</th>
+            <th scope="col" class="shrink">节数</th>
+            <th scope="col" class="shrink">更新时间</th>
+            <th scope="col" class="col-actions">操作</th>
+          </tr>
+        </thead>
+        <tbody data-sortable>
+          {% for c in chapters %}
+            <tr draggable="true" data-chapter-id="{{ c.id }}">
+              <td class="shrink">
+                <input type="checkbox" form="batch-form" name="chapter_id" value="{{ c.id }}" aria-label="选择「{{ c.title }}」">
+              </td>
+              <td class="num shrink">
+                <span class="drag-handle" title="拖动调整顺序">
+                  <svg viewBox="0 0 24 24" class="icon icon-sm" aria-hidden="true"><path d="M9 5h.01M9 12h.01M9 19h.01M15 5h.01M15 12h.01M15 19h.01"/></svg>
+                </span>
+                {{ loop.index }}
+              </td>
+              <td>
+                <a class="cell-title" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ c.id }}">{{ c.title }}</a>
+                <div class="cell-sub truncate">访问标识 <span class="mono">{{ c.slug }}</span></div>
+              </td>
+              <td class="shrink">
+                {% if c.status == 'published' %}
+                  <span class="badge badge-ok">已发布</span>
+                {% else %}
+                  <span class="badge badge-warn">草稿</span>
+                {% endif %}
+              </td>
+              <td class="num shrink">{{ section_counts.get(c.id, 0) }}</td>
+              <td class="num shrink">{{ c.updated_at.strftime("%Y-%m-%d %H:%M") }}</td>
+              <td class="col-actions">{{ chapter_actions(c) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted">状态只有「草稿」与「已发布」两种，且作用在章上：草稿章的节对访客一律 404，发布后整章的节一起可见。</p>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg stroke="currentColor" class="icon icon-lg" viewBox="0 0 24 24"><path d="M5 4h9l4 4v12H5z"/><path d="M14 4v4h4"/><path d="M8 12h7M8 16h5"/></svg>
+        </span>
+        <h3>还没有章</h3>
+        <p>新建一章时可以一次选多个 .md / .html 文件，每个文件会成为这一章里的一节。</p>
+        <a class="btn btn-primary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/new">新增第一章</a>
+      </div>
+    </div>
+  {% endif %}
+  </div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "admin/base.html" %}
+{% block content %}
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a href="{{ root_path }}/admin">内容管理</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="{{ root_path }}/admin/books/{{ book.id }}">{{ book.title }}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ section.id }}/versions">历史版本</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">版本对比</span>
+  </nav>
+
+  <div class="page-head page-head-row">
+    <div>
+      <h1>版本对比</h1>
+      <p>节「{{ section.title }}」（章：{{ chapter.title }}）：左边是 v{{ diff.left.version_no }}，右边是 v{{ diff.right.version_no }}。</p>
+    </div>
+    <div class="toolbar">
+      <a class="btn btn-secondary" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ section.id }}/versions">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+        返回版本列表
+      </a>
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="card-header">
+      <h2>
+        <span class="mono">v{{ diff.left.version_no }}</span>
+        <span class="muted">→</span>
+        <span class="mono">v{{ diff.right.version_no }}</span>
+      </h2>
+      <span class="badge {% if diff.identical %}badge-ok{% else %}badge-accent{% endif %}">
+        {% if diff.identical %}内容一致{% else %}共 {{ diff.rows|length }} 个区块{% endif %}
+      </span>
+    </div>
+    <div class="card-body">
+      <div class="toolbar">
+        <span class="badge">左 v{{ diff.left.version_no }} · {{ diff.left.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+        <span class="badge">右 v{{ diff.right.version_no }} · {{ diff.right.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+        <a class="btn btn-sm btn-ghost" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ section.id }}/versions/{{ diff.left.version_no }}">查看 v{{ diff.left.version_no }}</a>
+        <a class="btn btn-sm btn-ghost" href="{{ root_path }}/admin/books/{{ book.id }}/chapters/{{ chapter.id }}/sections/{{ section.id }}/versions/{{ diff.right.version_no }}">查看 v{{ diff.right.version_no }}</a>
+      </div>
+    </div>
+  </section>
+
+  {% if diff.identical %}
+    <div class="alert alert-ok">两个版本内容一致，没有差异。</div>
+  {% endif %}
+
+  {% if diff.truncated %}
+    <div class="alert alert-warn">
+      差异行数超出展示上限，下面只显示了前面的一部分。完整内容请分别查看对应版本。
+    </div>
+  {% endif %}
+
+  <div class="section-title">
+    <h2>逐行差异</h2>
+    <span class="small muted">绿色为右侧新增，红色为右侧删除</span>
+  </div>
+
+  {% if diff.rows %}
+    <div class="diff">
+      {% for row in diff.rows %}
+        <div class="diff-row {{ row.type }}">
+          <span class="ln">{{ row.left_no or '' }}</span>
+          <span class="ln">{{ row.right_no or '' }}</span>
+          <pre>{{ row.text }}</pre>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="small muted">绿色行为右侧新增的内容，红色行为右侧删除（左侧独有）的内容。</p>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+        </span>
+        <h3>没有可显示的差异行</h3>
+        <p>两个版本可能都是空内容，请分别打开对应版本查看原文。</p>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

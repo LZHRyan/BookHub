@@ -1,0 +1,31 @@
+{% if notice %}
+  {% set is_warn = notice == 'section-unchanged' %}
+  <div class="alert {{ 'alert-warn' if is_warn else 'alert-ok' }}" role="status">
+    {% if is_warn %}
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    {% else %}
+      <svg stroke="currentColor" class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+    {% endif %}
+    <div>
+      {% if notice == 'chapter-created' %}
+        <strong>章已创建</strong>{% if sections %}，下面是它已有的 {{ sections|length }} 节{% endif %}。可以继续加节，或先看看渲染效果。
+      {% elif notice == 'chapter-info-saved' %}
+        <strong>章信息已保存</strong>。正文与版本都在节上，改标题不会动节的内容。
+      {% elif notice == 'section-created' %}
+        <strong>节已创建</strong>，当前是 v{{ section.current_version_no }}。可以继续编辑，保存会生成新版本。
+      {% elif notice == 'sections-created' %}
+        <strong>已创建多节</strong>，每个文件生成了一节。下面可以逐节编辑。
+      {% elif notice == 'section-saved' %}
+        <strong>已保存为 v{{ section.current_version_no }}</strong>。旧版本仍可在「历史版本」里查看与回滚。
+      {% elif notice == 'section-unchanged' %}
+        <strong>内容没有变化，未生成新版本</strong>（仍是 v{{ section.current_version_no }}）。改过标题、正文、格式或访问标识之后保存才会产生新版本。
+      {% elif notice == 'section-deleted' %}
+        <strong>节已删除</strong>，它会立即从访客页消失。需要时可以再新建一节。
+      {% elif notice == 'book-created' %}
+        <strong>Book 已创建</strong>。接下来可以「新增章」，或去媒体库上传素材。
+      {% elif notice == 'book-saved' %}
+        <strong>Book 已保存</strong>。
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
