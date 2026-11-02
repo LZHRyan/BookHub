@@ -292,6 +292,21 @@ pytest
 - 每个用例使用独立临时 SQLite 库并跑真实迁移（`tests/conftest.py`），不会碰 `data/`。
 - 代码风格：`ruff check .`、`ruff format .`（配置在 `pyproject.toml`，行宽 110）。
 
+### 6.1 实机冒烟（CI 也跑这套）
+
+`pytest` 用的是进程内 TestClient，覆盖不到「`alembic upgrade` → `bootstrap` → uvicorn → 真实 HTTP」这条启动链路，所以仓库另带三个只依赖标准库的冒烟脚本，对着**已经跑起来的实例**验：
+
+```bash
+python scripts/smoke.py                                                   # 访客侧只读端点
+python scripts/e2e_admin_flow.py --username admin --password '<密码>'      # 网页端完整生命周期
+python scripts/api_smoke.py --token "bh_xxx"                              # 管理 API 生命周期
+```
+
+- 三者都以退出码表示结果（0 通过 / 1 失败），可直接放进部署流水线。
+- `e2e_admin_flow.py` 与 `api_smoke.py` 会写入带时间戳的测试 Book，**生产环境不要跑**。
+- 管理 API 冒烟需要一个 `write` 以上作用域的 Token：可在后台「API Token」页签发，或设 `ADMIN_API_TOKEN` 让应用启动时幂等落库一个。
+- CI 的 `smoke` job 就是按上面顺序跑的（含 60s 内等 `/healthz` 就绪，失败时上传 `uvicorn.log`）。
+
 ---
 
 ## 7. 常见问题
