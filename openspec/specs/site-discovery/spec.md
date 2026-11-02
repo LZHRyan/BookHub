@@ -1,7 +1,7 @@
 # site-discovery Specification
 
 ## Purpose
-提供让外部系统发现站点内容的两个机器可读入口：搜索引擎用的站点地图与内部监控用的指标端点。
+提供两个机器可读入口让外部系统发现站点内容：给搜索引擎的 `sitemap.xml`（只收录公开且已发布的内容）与给内部监控的 `/metrics`（Prometheus 文本格式的最小指标集）。
 
 ## Requirements
 
