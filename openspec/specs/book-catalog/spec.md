@@ -7,7 +7,7 @@
 
 ### Requirement: Book 创建与必填校验
 
-系统 SHALL 允许管理员创建 Book 并保存标题、所属组、简介、图标与可见性等元数据。系统 MUST 拒绝标题缺失或仅含空白字符的创建请求，MUST 拒绝未指定组的创建请求，且校验失败时 MUST NOT 产生任何 Book 记录，并返回指明缺失字段的可读错误。
+系统 SHALL 允许管理员创建 Book 并保存标题、所属组、简介、图标与可见性等元数据。系统 MUST NOT 提供任何人工填写排序权重的字段；Book 的展示顺序由系统自动计算（见 `book-ranking`）。系统 MUST 拒绝标题缺失或仅含空白字符的创建请求，MUST 拒绝未指定组的创建请求，且校验失败时 MUST NOT 产生任何 Book 记录，并返回指明缺失字段的可读错误。
 
 #### Scenario: 缺少标题时创建失败
 
@@ -32,6 +32,12 @@
 
 - **WHEN** 管理员只提交标题与组就创建 Book
 - **THEN** 创建成功，简介与图标为空值
+
+#### Scenario: 创建请求不接受排序权重
+
+- **WHEN** 创建请求里附带任意「排序权重」参数
+- **THEN** 该参数被忽略，不写入任何字段
+- **AND** 创建后的 Book 顺序完全由系统按热度与创建时间决定
 
 ### Requirement: slug 规范化与唯一性
 
@@ -73,7 +79,7 @@
 
 ### Requirement: Book 元数据更新
 
-Book 的标题、简介、图标、分组、可见性、置顶与封面 MUST 可随时更新，且更新 MUST 立即反映到列表、详情与只读 API。文档类型（`format`）在该 Book 已有章之后 MUST NOT 被修改。访问标识（`slug`）MUST 可改并 MUST 保持全站唯一。任一字段非法时整次更新 MUST NOT 生效。
+Book 的标题、简介、图标、分组、可见性、置顶与封面 MUST 可随时更新，且更新 MUST 立即反映到列表、详情与只读 API。文档类型（`format`）在该 Book 已有章之后 MUST NOT 被修改。访问标识（`slug`）MUST 可改并 MUST 保持全站唯一。任一字段非法时整次更新 MUST NOT 生效。系统 MUST NOT 接受任何修改排序权重的请求。
 
 内置指南 Book（`is_builtin=true`）的 `slug` 与 `format` MUST NOT 被修改：前者是外部集成（链接、MCP 配置、脚本）的锚点，后者决定其 Markdown 正文的渲染方式。其余字段（标题、简介、图标、可见性、置顶、封面）MUST 仍可更新。
 
@@ -94,6 +100,12 @@ Book 的标题、简介、图标、分组、可见性、置顶与封面 MUST 可
 - **WHEN** 对 `ai-agent-guide` 提交新的标题与简介
 - **THEN** 更新成功并立即生效
 - **AND** 同时提交新 slug 或 `format=html` 时返回 400，其余字段不落库
+
+#### Scenario: 表单里的排序权重被忽略
+
+- **WHEN** 编辑请求里附带「排序权重」参数并保存成功
+- **THEN** 标题、简介等合法字段照常生效
+- **AND** 该 Book 在列表中的位置仍只由自动权重决定
 
 ### Requirement: Book 可见性语义
 
@@ -120,24 +132,42 @@ Book 的标题、简介、图标、分组、可见性、置顶与封面 MUST 可
 
 ### Requirement: Book 排序
 
-系统 SHALL 按整数排序权重升序排列 Book。权重相同的 Book MUST 以稳定的次级规则（创建时间升序）排列，保证相同请求重复执行得到同一顺序。排序权重变更后，新顺序 MUST 在下一次列表请求中立即反映，无需任何额外刷新或重建步骤。
+系统 SHALL 按自动计算的热度权重**降序**排列 Book。权重 MUST 由系统根据访问热度与创建时间计算得出，MUST NOT 提供任何人工设置排序权重的入口、字段或接口。权重相同的 Book MUST 以稳定的次级规则（创建时间降序，再回退到 id 降序）排列，保证相同数据下重复请求得到同一顺序。访问热度或新建 Book 引起的顺序变化 MUST 在下一次列表请求中立即反映，无需任何额外刷新或重建步骤。
+
+#### Scenario: 热门 Book 排到最前
+
+- **WHEN** 某 Book 近期访问量明显高于其他 Book
+- **THEN** 下一次列表请求中该 Book 排在最前
+- **AND** 无需管理员做任何设置
+
+#### Scenario: 新建 Book 默认靠前
+
+- **WHEN** 两本 Book 都没有任何访问记录
+- **THEN** 创建时间较晚的那本排在前面
+- **AND** 该顺序随创建时间衰减而逐渐回落，不需要人工干预
 
 #### Scenario: 调整权重后顺序立即变化
 
-- **WHEN** 管理员把原本排最后的 Book 的排序权重改为最小值
+- **WHEN** 某 Book 因近期被频繁访问而权重升到最高
 - **THEN** 下一次列表请求中该 Book 排在首位
+- **AND** 无需任何额外刷新或重建步骤
 
 #### Scenario: 权重相同时顺序稳定
 
-- **WHEN** 两个 Book 的排序权重相同
+- **WHEN** 两本 Book 的访问数据与创建时间完全一致
 - **THEN** 多次请求列表得到相同的相对顺序
-- **AND** 该顺序与创建时间升序一致
+- **AND** 该顺序按 id 降序兜底
 
 #### Scenario: 分页遍历不重复不遗漏
 
 - **WHEN** 访客按分页参数逐页拉取 Book 列表
 - **THEN** 各页之间的 Book 不重复
 - **AND** 全部页的并集等于当时的可见 Book 集合
+
+#### Scenario: 顺序不随请求时刻抖动
+
+- **WHEN** 两次列表请求之间没有任何新的访问与创建
+- **THEN** 即使相隔数天，两次请求得到的相对顺序也完全一致
 
 ### Requirement: Book 详情返回有序章节目录
 
@@ -311,3 +341,38 @@ Book 的对外表示（只读 API 与详细响应）MUST 包含 `group` 对象�
 - **WHEN** 管理员对内置 Book 手工提交删除表单
 - **THEN** 响应是 303 跳回内容管理列表，并带上 `error` 提示参数
 - **AND** 列表页渲染出这条提示，书仍然可读、未被软删除
+
+### Requirement: Book MUST 记录 HTML 阅读方式
+
+HTML 类型的 Book MUST 记录一个阅读方式，取值为 `inline`（站内净化渲染）或 `document`（原始文档通道），默认 `document`。存量的 HTML Book MUST 由一次性数据迁移统一回填为 `document`。创建与更新 Book 时提交非法取值 MUST 被拒绝且 MUST NOT 落库。Markdown 类型的 Book MUST 恒为 `inline`，提交其他取值 MUST 被忽略为 `inline`，而不是产生"Markdown + 原始文档"这种无意义组合。修改该字段 MUST 只影响渲染入口，MUST NOT 改动已上传的章节正文。
+
+#### Scenario: 默认按原始文档打开
+
+- **WHEN** 管理员创建一个 HTML 类型的 Book 且未指定阅读方式
+- **THEN** 该 Book 的阅读方式为 `document`
+- **AND** 其章节链接指向原始文档并在新标签页打开
+
+#### Scenario: 存量 HTML Book 被回填
+
+- **WHEN** 升级一个已经存在 HTML Book 的站点
+- **THEN** 这些 Book 的阅读方式为 `document`
+- **AND** 其章节正文与既有链接标识保持不变
+
+#### Scenario: 切换为站内渲染
+
+- **WHEN** 管理员把某 HTML Book 的阅读方式改为 `inline`
+- **THEN** 保存成功，Book 详情页显示模式徽章
+- **AND** Book 目录中的章节链接改回站内章节页
+- **AND** 该 Book 已有章节的正文内容保持不变
+
+#### Scenario: 非法取值被拒绝
+
+- **WHEN** 创建或更新请求把阅读方式设为 `iframe` 或空串之外的任意非法值
+- **THEN** 系统返回 4xx 并说明只允许 `inline` 或 `document`
+- **AND** 该 Book 的阅读方式保持原值
+
+#### Scenario: Markdown Book 忽略该字段
+
+- **WHEN** 管理员对一个 Markdown 类型的 Book 提交阅读方式 `document`
+- **THEN** 保存后的阅读方式仍为 `inline`
+- **AND** 其章节始终按 Markdown 渲染管线输出

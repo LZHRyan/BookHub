@@ -1,5 +1,9 @@
 # Spec Delta
 
+## Purpose
+
+定义 Book 在访客端的展示顺序：权重由访问热度与创建时间自动计算、不可人工设置，并提供权重的可观测性，使排序结果可解释。
+
 ## ADDED Requirements
 
 ### Requirement: 访问热度采集
