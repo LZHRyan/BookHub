@@ -12,7 +12,7 @@ from app.services.sections import create_section
 
 WELCOME_MD = """# 欢迎使用 BookHub
 
-这是研发部技术文档知识库的演示章节。
+这是技术文档知识库的演示章节。
 
 | 能力 | 说明 |
 | --- | --- |

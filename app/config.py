@@ -90,7 +90,7 @@ class Settings:
     secret_key: str
     database_url: str = "sqlite:///./data/bookhub.db"
     data_dir: str = "./data"
-    site_name: str = "BookHub 研发知识库"
+    site_name: str = "BookHub 知识库"
     site_footer: str = "内部技术文档"
     home_intro: str = ""
     session_cookie_name: str = "bookhub_session"
@@ -153,7 +153,7 @@ class Settings:
             secret_key=secret_key,
             database_url=_text(source, "DATABASE_URL", "sqlite:///./data/bookhub.db"),
             data_dir=_text(source, "DATA_DIR", "./data"),
-            site_name=_text(source, "SITE_NAME", "BookHub 研发知识库"),
+            site_name=_text(source, "SITE_NAME", "BookHub 知识库"),
             site_footer=_text(source, "SITE_FOOTER", "内部技术文档"),
             home_intro=_text(source, "HOME_INTRO", ""),
             session_cookie_name=_text(source, "SESSION_COOKIE_NAME", "bookhub_session"),

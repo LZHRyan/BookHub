@@ -52,7 +52,7 @@ services:
     # 两处各写一份必然漂移。
     labels:
       org.opencontainers.image.title: BookHub
-      org.opencontainers.image.description: 研发部技术文档知识库
+      org.opencontainers.image.description: 技术文档知识库
       org.opencontainers.image.source: BookHub
 
     # 切 Postgres 时再打开下面两行（需要 --profile postgres 同时启动 db）：

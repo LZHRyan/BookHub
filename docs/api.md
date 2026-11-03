@@ -1,6 +1,6 @@
 # BookHub 只读 API v1 手册
 
-面向研发部内部同事的接口手册。本文档描述 BookHub 对外只读 HTTP API `/api/v1`，全部端点均为 `GET`，不接受写入方法（`POST`/`PUT`/`PATCH`/`DELETE` 一律返回 `405`，错误体 `code` 为 `http_error`）。
+面向内部同事的接口手册。本文档描述 BookHub 对外只读 HTTP API `/api/v1`，全部端点均为 `GET`，不接受写入方法（`POST`/`PUT`/`PATCH`/`DELETE` 一律返回 `405`，错误体 `code` 为 `http_error`）。
 
 内容的唯一事实来源是 `app/api/v1.py`、`app/main.py`、`app/middleware.py`、`app/errors.py`、`app/config.py` 与 `app/services/` 下的实现，文档与代码不一致时以代码为准。
 
@@ -116,7 +116,7 @@
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `name` | string | 站点名称，来自环境变量 `SITE_NAME`（默认 `BookHub 研发知识库`） |
+| `name` | string | 站点名称，来自环境变量 `SITE_NAME`（默认 `BookHub 知识库`） |
 | `version` | string | 应用版本，当前为 `1.0.0`（`app/__init__.py` 的 `__version__`） |
 | `capabilities.formats` | string[] | 支持写作的源格式，固定 `["markdown","html"]` |
 | `capabilities.rendered` | bool | 是否提供服务端渲染结果（`content_rendered` 与 `?format=rendered`），固定 `true` |
@@ -134,7 +134,7 @@ curl -s http://localhost:8000/api/v1/site
 
 ```json
 {
-  "name": "BookHub 研发知识库",
+  "name": "BookHub 知识库",
   "version": "1.0.0",
   "capabilities": {
     "formats": ["markdown", "html"],
@@ -1027,7 +1027,7 @@ export SECRET_KEY="$(python -c 'import secrets;print(secrets.token_urlsafe(48))'
 export API_KEY="$(python -c 'import secrets;print(secrets.token_hex(24))')"
 export RATE_LIMIT_ENABLED=true
 export RATE_LIMIT_PER_MINUTE=120
-export SITE_NAME="BookHub 研发知识库"
+export SITE_NAME="BookHub 知识库"
 export ROOT_PATH=""          # 挂在子路径时改成 /docs 之类
 export API_DOCS_ENABLED=true
 export CORS_ORIGINS="https://wiki.example.com"
@@ -1110,7 +1110,7 @@ python -m uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000
 | `API_KEY` | 未设置 | 设置后 `/api/v1` 除 `/api/v1/site` 外都要 `X-API-Key`；同时解锁 `visibility=unlisted/all` |
 | `RATE_LIMIT_ENABLED` | `true` | 是否对 `/api/v1` 限流 |
 | `RATE_LIMIT_PER_MINUTE` | `120` | 每 IP 每分钟额度 |
-| `SITE_NAME` | `BookHub 研发知识库` | `/api/v1/site` 的 `name` |
+| `SITE_NAME` | `BookHub 知识库` | `/api/v1/site` 的 `name` |
 | `ROOT_PATH` | 空 | 拼在请求路径前；并成为 payload 里 `url`/`api_url`/`api.docs` 的前缀 |
 | `API_DOCS_ENABLED` | `true` | 关闭后 `/docs` 与 `/openapi.json` 返回 `404`，`/api/v1/site` 的 `api.docs` 为 `null` |
 | `CORS_ORIGINS` | `*` | 逗号分隔的 origin 白名单（`*` 时允许所有源） |

@@ -1,6 +1,6 @@
 # 部署与运维
 
-面向部署 BookHub 的运维/研发同事。所有行为都能在代码里找到依据，行内标注了对应文件；命令按「已实测」与「约定（未实测）」区分。
+面向部署 BookHub 的运维同事。所有行为都能在代码里找到依据，行内标注了对应文件；命令按「已实测」与「约定（未实测）」区分。
 
 ---
 
@@ -35,7 +35,7 @@
 | --- | --- | --- |
 | `DATABASE_URL` | `sqlite:///./data/bookhub.db` | SQLAlchemy URL。`sqlite` 前缀会额外打开 WAL/外键/`busy_timeout`（`app/db.py`）。容器里 compose 默认给 `sqlite:////data/bookhub.db`（**4 个斜杠**＝绝对路径） |
 | `DATA_DIR` | `./data` | 应用侧**只记录进启动日志**，不参与应用内的路径计算（实际库位置由 `DATABASE_URL` 决定）；但 `docker/entrypoint.sh` 会用它做目录创建/可写探测，`docker/backup.sh` 也按 `/data` 打包 |
-| `SITE_NAME` | `BookHub 研发知识库` | 站点名默认值；后台「站点设置」保存后会覆盖 |
+| `SITE_NAME` | `BookHub 知识库` | 站点名默认值；后台「站点设置」保存后会覆盖 |
 | `SITE_FOOTER` | `内部技术文档` | 页脚默认值，同上 |
 | `HOME_INTRO` | 空 | 首页说明默认值，同上 |
 | `ROOT_PATH` | 空 | 反向代理子路径，如 `/kb`；`/`、尾部斜杠会被归一化掉（`_normalize_root_path`） |
