@@ -17,10 +17,11 @@ jobs:
           cache: pip
 
       - name: Install dependencies
+        # 必须用 requirements-dev.txt：pytest 的 conftest 依赖 TestClient，
+        # 而 starlette 的 TestClient 需要 httpx（只装 requirements.txt 会直接 ImportError）。
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install ruff pytest
+          pip install -r requirements-dev.txt
 
       - name: Lint
         run: ruff check app tests scripts
