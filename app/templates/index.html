@@ -37,7 +37,7 @@
         <div class="group-section-head">
           <h2 id="group-{{ section.group.slug }}">
             <a href="{{ root_path }}/?group={{ section.group.slug }}">
-              {% if section.group.icon %}<span class="group-icon" aria-hidden="true">{{ section.group.icon }}</span>{% endif %}
+              {% if section.group.icon %}<span class="group-icon" aria-hidden="true">{{ icon(section.group.icon, 18) }}</span>{% endif %}
               {{ section.group.title }}
             </a>
             <span class="badge">{{ section.total }} 个 Book</span>
@@ -57,11 +57,7 @@
                 </span>
               {% else %}
                 <span class="book-cover book-cover-fallback" aria-hidden="true">
-                  {%- if item.book.icon -%}
-                    {{ item.book.icon }}
-                  {%- else -%}
-                    <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z"/><path d="M8 3v18"/></svg>
-                  {%- endif -%}
+                  {{ icon(item.book.icon, 46) }}
                 </span>
               {% endif %}
               <div class="book-card-body">

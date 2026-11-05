@@ -41,7 +41,7 @@ Book 的上一层：一个组就是首页上的一个分区，**每本 Book 必�
 | `slug` | String(160) UNIQUE | — | **整表唯一**（组没有软删除，所以不是部分唯一索引）；只用于 API 的 `{ref}`、只读 API 的 `?group=<slug\|id>` 与首页的 `/?group=<slug>`，**不出现在读者地址栏** |
 | `title` | String(120) | — | 必填，服务层限制 ≤120；首页分区标题 |
 | `description` | Text | `""` | 分区说明，为空时首页不显示这一段 |
-| `icon` | String(32) | `""` | 一个 emoji，显示在分区标题与 Book 页的面包屑前 |
+| `icon` | String(32) | `""` | 图标名（如 `folder-tree`），显示在分区标题与 Book 页的面包屑前 |
 | `sort_order` | Integer | `0` | 组之间的先后顺序；新建取「当前最大值 + 10」，上移/下移后整体重写为 10/20/30… |
 | `created_at` / `updated_at` | DateTime | `utcnow` | `updated_at` 只在改标题/slug/简介/图标时更新，调整顺序不动它 |
 
@@ -66,7 +66,7 @@ Book 的上一层：一个组就是首页上的一个分区，**每本 Book 必�
 | `slug` | String(160) | — | URL 标识，`[a-z0-9-]`；与 `deleted_at IS NULL` 组成部分唯一索引 |
 | `title` | String(200) | — | 必填，服务层限制 ≤200 |
 | `summary` | Text | `""` | 简介，首页卡片与 Book 页展示 |
-| `icon` | String(32) | `""` | emoji 之类；空时页面回退为内置矢量图标 |
+| `icon` | String(32) | `""` | 内置图标名；空时页面回退为默认矢量图标 |
 | `format` | String(16) | `markdown` | **文档类型（整本唯一）**：`markdown` \| `html`。所有节都必须用它；有章之后不可修改（`update_book` 会拒绝） |
 | `html_view` | String(16) | `inline` | HTML Book 的阅读方式：`document`（默认，`/raw` 原样输出、新标签页打开）\| `inline`（站内净化渲染）。列默认值保留 `inline` 作安全兜底，HTML Book 由服务层默认写成 `document`；Markdown Book 恒为 `inline` |
 | `visibility` | String(16) | `public` | `public` \| `unlisted` |

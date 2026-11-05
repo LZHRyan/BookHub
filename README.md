@@ -409,8 +409,12 @@ engine.dispose()
 
 界面是一套自建的轻量设计系统（`app/static/style.css`，无 CSS 框架、无构建步骤、无 CDN），颜色/字号/圆角/阴影全部走 CSS 变量。
 
+配色取「书房/工具书」的路子：纸色背景（`#e9e2d4`）+ 墨色正文 + **藏青**主色（`#1f3a5f`）+ 铜色点缀。文档站常见的做法是白底 + 蓝链接（Wikipedia/Confluence 那一路），这里换成暖纸底，阅读长文不刺眼，也不容易撞上"一眼 AI 生成"的紫渐变。**圆角一律为 0**（方角），阴影只有一层暖灰投影 + 一道上缘高光，模仿纸张厚度；没有渐变、光斑和发光。
+
 - **三态主题**：顶栏右侧切换「跟随系统 / 亮色 / 暗色」，选择存在 `localStorage["bookhub-theme"]`；首屏由 `<head>` 里的 `app/static/theme.js` 同步设置 `data-theme`，不会闪白。禁用 JS 时自动退化为跟随系统。
 - **换主色**：只改 `style.css` 里 `:root` 的 `--accent` / `--accent-hover` / `--accent-soft` / `--accent-border`（暗色同名变量在 `:root[data-theme="dark"]` 里），全站按钮、链接、焦点环、选中态一起变。
+- **图标**：Book/分组的图标是一套内置的线性 SVG（取自 [Lucide](https://lucide.dev)，ISC 许可，共 125 个），存在 `app/services/icons.py` 的 `ICON_PATHS` 里，模板通过 `{{ icon(book.icon, 22) }}` 内联渲染——不引 CDN、不做图标字体，也不随系统字体变化。老数据里的 emoji 由 `EMOJI_ALIASES` 映射成最接近的图标。
+- **标题字体**：`--font-serif`（Palatino/Georgia → 宋体）只用在标题与书名上，正文保持无衬线，长文可读性不受影响。
 - **站点图标**：`app/static/favicon.svg`（矢量，跟随主题色 `theme-color`）。想换 logo 直接替换这个文件，模板里通过 `<link rel="icon">` 引用。
 - **代码高亮**：`app/static/pygments.css` 由 `scripts/gen_pygments.py` 生成，亮色用 `default`、暗色用 `github-dark`，跟随 `data-theme`。
 - **排版**：正文行宽上限 `--measure: 72ch`，阅读页宽屏显示右侧页内目录、窄屏折叠为可展开的「本页目录」，打印时自动隐藏导航与侧栏。

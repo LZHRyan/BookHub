@@ -30,7 +30,6 @@ from app.services import books as books_service
 from app.services import chapters as chapters_service
 from app.services import media as media_service
 from app.services import sections as sections_service
-from app.services.emoji import EMOJI_GROUPS, total_emojis
 from app.services.encoding import (
     EmptyContent,
     EncodingError,
@@ -39,6 +38,7 @@ from app.services.encoding import (
     detect_format,
     title_from_filename,
 )
+from app.services.icons import ICON_GROUPS, total_icons
 from app.services.settings import load_settings, save_settings
 from app.services.users import create_user, set_active, set_password
 from app.uploads import read_limited
@@ -58,8 +58,8 @@ AUDIT_PAGE_SIZE = 30
 def _ctx(request: Request, session: Session, user: User, page_title: str, **extra: object) -> dict[str, object]:
     # 图标面板与媒体上传上限是纯数据，挂在所有管理页上下文里，避免每个渲染分支都传一遍
     context: dict[str, object] = {
-        "emoji_groups": EMOJI_GROUPS,
-        "emoji_total": total_emojis(),
+        "icon_groups": ICON_GROUPS,
+        "icon_total": total_icons(),
         "media_max_label": human_bytes(get_settings(request).media_max_bytes),
     }
     context.update(extra)

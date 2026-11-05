@@ -72,7 +72,7 @@ class BookCreate(BaseModel):
         default=None, description="所属分组的 slug 或 id，必填；缺失返回 400"
     )
     summary: str = Field(default="", description="简介，显示在首页卡片")
-    icon: str = Field(default="", description="图标，一个 emoji")
+    icon: str = Field(default="", description="图标名（内置 SVG 图标集，例如 book-open）；留空用默认图标")
     format: DocFormat = Field(default="markdown", description="整本文档类型：所有节都按它渲染，有章后不可改")
     visibility: Visibility = Field(default="public", description="public 或 unlisted")
     html_view: str | None = Field(default=None, description="HTML Book 的展示模式（由站点定义）")
@@ -132,7 +132,7 @@ class BookGroupCreate(BaseModel):
     title: str = Field(description="分组标题，必填")
     slug: str = Field(default="", description="留空由标题生成；只用于 API 与 ?group= 筛选")
     description: str = Field(default="", description="分组简介")
-    icon: str = Field(default="", description="分组图标，一个 emoji")
+    icon: str = Field(default="", description="分组图标名（内置 SVG 图标集，例如 folder-tree）")
 
 
 class BookGroupUpdate(BaseModel):

@@ -12,41 +12,48 @@
     }
   });
 
-  /* 图标面板：点选写入 #icon，实时更新预览，支持清空 */
+  /* 图标面板：点选把图标名写进 #icon，并把按钮内的 SVG 直接搬进预览 */
   var iconInput = document.querySelector("#icon");
   if (iconInput) {
-    var preview = document.querySelector("[data-emoji-preview]");
+    var preview = document.querySelector("[data-icon-preview]");
     var emptyPreview = preview ? preview.innerHTML : "";
 
-    var syncPreview = function () {
+    var renderPreview = function (svg) {
       if (!preview) return;
-      var value = iconInput.value.trim();
-      if (value) {
-        preview.textContent = value;
+      if (svg) {
+        preview.innerHTML = svg;
       } else {
         preview.innerHTML = emptyPreview;
       }
     };
 
-    iconInput.addEventListener("input", syncPreview);
+    iconInput.addEventListener("input", function () {
+      var value = iconInput.value.trim();
+      if (!value) {
+        renderPreview("");
+        return;
+      }
+      // 手输的是图标名，客户端没有图标表，先按文字显示；保存后由服务端渲染成 SVG
+      preview.textContent = value;
+    });
 
     document.addEventListener("click", function (event) {
       var target = event.target;
       if (!(target instanceof Element)) return;
 
-      var option = target.closest("[data-emoji]");
+      var option = target.closest("[data-icon]");
       if (option) {
         event.preventDefault();
-        iconInput.value = option.getAttribute("data-emoji") || "";
-        syncPreview();
+        iconInput.value = option.getAttribute("data-icon") || "";
+        renderPreview(option.innerHTML);
         iconInput.focus();
         return;
       }
 
-      if (target.closest("[data-emoji-clear]")) {
+      if (target.closest("[data-icon-clear]")) {
         event.preventDefault();
         iconInput.value = "";
-        syncPreview();
+        renderPreview("");
         iconInput.focus();
       }
     });

@@ -149,7 +149,7 @@ curl -s -H "Authorization: Bearer $BOOKHUB_TOKEN" \
 | `slug` | string | 站内唯一；只用于 API 与 `?group=` 筛选，不出现在读者地址栏 |
 | `title` | string | 分区标题（最长 120 字符） |
 | `description` | string | 分区说明，未填为空串 |
-| `icon` | string | 一个 emoji，未填为空串 |
+| `icon` | string | 图标名（内置 SVG 图标集，如 `book-open`）；未填为空串，页面回退默认图标 |
 | `sort_order` | int | 组之间的顺序，10/20/30… |
 | `book_count` | int | 该组下**未删除**的 Book 数（不含回收站） |
 | `is_default` | bool | 是否为系统内置的「默认分组」（`slug=default`）：不能删除、slug 不能改 |

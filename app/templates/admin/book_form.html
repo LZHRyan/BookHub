@@ -50,7 +50,7 @@
             <select id="group" name="group" required>
               <option value="" {% if not form.group %}selected{% endif %}>请选择分组</option>
               {% for g in groups %}
-                <option value="{{ g.id }}" {% if form.group|string == g.id|string %}selected{% endif %}>{% if g.icon %}{{ g.icon }} {% endif %}{{ g.title }}</option>
+                <option value="{{ g.id }}" {% if form.group|string == g.id|string %}selected{% endif %}>{{ g.title }}</option>
               {% endfor %}
             </select>
             <span class="hint">
@@ -96,18 +96,14 @@
         <div class="form form-wide">
           <div class="field">
             <label for="icon">图标</label>
-            <div class="emoji-input">
-              <span class="emoji-preview" data-emoji-preview aria-hidden="true">
-                {%- if form.icon -%}
-                  {{ form.icon }}
-                {%- else -%}
-                  <svg class="icon" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z"/><path d="M8 3v18"/></svg>
-                {%- endif -%}
+            <div class="icon-input">
+              <span class="icon-preview" data-icon-preview aria-hidden="true">
+                {{- icon(form.icon, 20) -}}
               </span>
-              <input type="text" id="icon" name="icon" value="{{ form.icon }}" maxlength="16" placeholder="点选下方图标，或直接粘贴一个 emoji">
-              <button type="button" class="btn btn-sm btn-ghost" data-emoji-clear>清空</button>
+              <input type="text" id="icon" name="icon" value="{{ form.icon }}" maxlength="40" placeholder="点选下方图标（存的是名字，例如 book-open）">
+              <button type="button" class="btn btn-sm btn-ghost" data-icon-clear>清空</button>
             </div>
-            <span class="hint">留空时前台显示默认矢量图标；面板里的图标随系统字体渲染，不同系统外观略有差异。</span>
+            <span class="hint">留空时前台显示默认的「打开的书」图标；图标是内联 SVG，不随系统字体变化。</span>
 
             {% if mode == 'edit' %}
               <div class="field">
@@ -125,14 +121,14 @@
               </div>
             {% endif %}
 
-            <details class="emoji-picker">
-              <summary>从预置图标中选择（{{ emoji_total }} 个）</summary>
-              {% for group_name, items in emoji_groups %}
-                <div class="emoji-group">
-                  <p class="emoji-group-title">{{ group_name }}</p>
-                  <div class="emoji-grid">
-                    {% for emoji, label in items %}
-                      <button type="button" class="emoji-option" data-emoji="{{ emoji }}" title="{{ label }}" aria-label="{{ group_name }}：{{ label }}">{{ emoji }}</button>
+            <details class="icon-picker">
+              <summary>从预置图标中选择（{{ icon_total }} 个）</summary>
+              {% for group_name, items in icon_groups %}
+                <div class="icon-group">
+                  <p class="icon-group-title">{{ group_name }}</p>
+                  <div class="icon-grid">
+                    {% for name, label in items %}
+                      <button type="button" class="icon-option" data-icon="{{ name }}" title="{{ label }}" aria-label="{{ group_name }}：{{ label }}">{{ icon(name, 20) }}</button>
                     {% endfor %}
                   </div>
                 </div>

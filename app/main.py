@@ -87,6 +87,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
     templates.env.filters["tojson_pretty"] = lambda value: json.dumps(value, ensure_ascii=False, indent=2)
     templates.env.globals["asset_version"] = asset_version()
+    # 图标：模板里写 {{ icon(book.icon, 22) }} 即得内联 SVG（未识别的值原样输出）
+    from app.services.icons import icon as render_icon
+
+    templates.env.globals["icon"] = render_icon
     from app.services.media import media_root, prefix_media_urls
 
     templates.env.filters["media_urls"] = lambda html: prefix_media_urls(html, settings.root_path)

@@ -32,7 +32,7 @@
 
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      meta.setAttribute("content", isDark(mode) ? "#0e1116" : "#4f46e5");
+      meta.setAttribute("content", isDark(mode) ? "#16130f" : "#1f3a5f");
     }
 
     var buttons = document.querySelectorAll("[data-theme-choice]");
