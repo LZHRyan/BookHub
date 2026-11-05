@@ -96,7 +96,11 @@ fi
 mkdir -p "${OUT_DIR}/${TS}"
 docker compose cp "${SERVICE}:${REMOTE_DIR}/." "${OUT_DIR}/${TS}/" \
     || die "docker compose cp 失败（容器仍在运行？）"
-log "已取回：${OUT_DIR}/${TS}/"
+# 备份里有用户口令哈希与全部正文：docker compose cp 会沿用它从容器里带出的 644，
+# umask 管不到，这里显式收成 600（root 之外的账号不该能读备份）
+chmod 700 "${OUT_DIR}/${TS}"
+find "${OUT_DIR}/${TS}" -type f -exec chmod 600 {} +
+log "已取回：${OUT_DIR}/${TS}/（权限 600）"
 
 # ---------------------------------------------------------------- 3. 清理容器内临时文件
 # 不清会撑爆命名卷；容器内 /data/backups 只是中转站。
