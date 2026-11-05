@@ -23,7 +23,7 @@
   /* 文字（墨色） */
   --text: #221d17;
   --text-muted: #5a5044;
-  --text-faint: #877c6c;
+  --text-faint: #786d5f;
   --text-inverse: #fbf8f1;
   --on-accent: #fbf8f1;
 
@@ -35,6 +35,8 @@
   /* 铜色点缀：只用于分隔线、书脊、悬停底色这类小面积 */
   --brass: #9a7434;
   --brass-soft: #efe4cd;
+  /* 书脊色条：亮色下用主色，暗色下要压暗，否则一行亮蓝条太抢眼 */
+  --spine: #1f3a5f;
 
   /* 语义色 */
   --danger: #a8322a;
@@ -97,7 +99,7 @@
 
   --text: #ece3d4;
   --text-muted: #b0a390;
-  --text-faint: #857868;
+  --text-faint: #958878;
   --text-inverse: #16130f;
   --on-accent: #0d1a29;
 
@@ -108,6 +110,7 @@
 
   --brass: #c9a05a;
   --brass-soft: #2a2318;
+  --spine: #3b587a;
 
   --danger: #e0857b;
   --danger-soft: #2b1715;
@@ -140,7 +143,7 @@
 
     --text: #ece3d4;
     --text-muted: #b0a390;
-    --text-faint: #857868;
+    --text-faint: #958878;
     --text-inverse: #16130f;
     --on-accent: #0d1a29;
 
@@ -151,6 +154,7 @@
 
     --brass: #c9a05a;
     --brass-soft: #2a2318;
+    --spine: #3b587a;
 
     --danger: #e0857b;
     --danger-soft: #2b1715;
@@ -1235,7 +1239,7 @@ kbd {
   place-items: center;
   /* 拟物：左边一道书脊色条 + 书封纸色，像书立着露出的封面 */
   background: color-mix(in srgb, var(--brass-soft) 55%, var(--surface));
-  border-left: 10px solid var(--accent);
+  border-left: 10px solid var(--spine);
   box-shadow: inset 0 0 0 1px var(--border), inset 3px 0 0 rgba(255, 255, 255, .22);
   color: var(--accent);
   font-size: 2.6rem;
