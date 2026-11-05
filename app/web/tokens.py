@@ -264,6 +264,37 @@ def revoke_token(
     return RedirectResponse(f"{settings.root_path}/admin/tokens", status_code=303)
 
 
+@router.post("/{token_id}/delete")
+def delete_token(
+    request: Request,
+    token_id: int,
+    csrf_token: str = Form(default=""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """删除已吊销/已过期的 Token 记录（吊销只让它失效，不会从列表消失）。"""
+    user = require_user(request, session, admin_only=True)
+    require_csrf(request, csrf_token)
+    token = token_service.get_token(session, token_id)
+    if token is None:
+        raise NotFound("Token 不存在")
+    if token_service.is_active(token):
+        raise ValidationFailed("Token 仍在有效期内，请先吊销再删除")
+    name = token.name
+    token_service.delete_token(session, token)
+    audit_service.record(
+        session,
+        actor=user,
+        action="token.delete",
+        target_type="token",
+        target_id=token_id,
+        target_label=name,
+        ip=client_ip(request),
+    )
+    session.commit()
+    settings = get_settings(request)
+    return RedirectResponse(f"{settings.root_path}/admin/tokens", status_code=303)
+
+
 @router.post("/cleanup")
 def cleanup_idempotency(
     request: Request,

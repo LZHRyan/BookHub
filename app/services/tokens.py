@@ -155,6 +155,23 @@ def revoke_token(session: Session, token: ApiToken) -> None:
         session.flush()
 
 
+def is_active(token: ApiToken, now: datetime | None = None) -> bool:
+    """还能用的 Token：没吊销、没过期。"""
+    return token.revoked_at is None and not _expired(token, now)
+
+
+def delete_token(session: Session, token: ApiToken) -> None:
+    """物理删除一条 Token 记录。
+
+    只允许删「已经不能用」的（吊销或过期）：还能用的必须先把吊销做成一次独立动作，
+    否则删掉再用同一明文重建就能悄悄延命，审计里也看不出"这个 Token 哪天失效"。
+    """
+    if is_active(token):
+        raise ValidationFailed("Token 仍在有效期内，请先吊销再删除")
+    session.delete(token)
+    session.flush()
+
+
 def list_tokens(session: Session) -> list[ApiToken]:
     return list(session.execute(select(ApiToken).order_by(ApiToken.created_at.desc())).scalars())
 

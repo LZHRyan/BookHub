@@ -392,6 +392,40 @@ def test_token_issue_and_revoke_roundtrip(api) -> None:
     assert after.status_code == 401
 
 
+def test_token_delete_requires_revoked(api) -> None:
+    """吊销只是让它失效；想把死记录清掉，得走 /delete 且只有失效的才给删。"""
+    client, _ = api
+    issued = client.post(
+        "/api/v1/admin/tokens",
+        json={"name": "to-delete", "scopes": ["read"]},
+        headers=AUTH,
+    ).json()
+    token_id = issued["id"]
+
+    # 仍有效：必须先吊销
+    blocked = client.post(f"/api/v1/admin/tokens/{token_id}/delete?confirm=true", headers=AUTH)
+    assert blocked.status_code == 400
+    assert "先吊销" in blocked.json()["error"]["message"]
+
+    # 没带 confirm 时给预览
+    preview = client.post(f"/api/v1/admin/tokens/{token_id}/delete?dry_run=true", headers=AUTH)
+    assert preview.status_code == 200
+    assert preview.json()["dry_run"] is True
+
+    assert client.delete(f"/api/v1/admin/tokens/{token_id}", headers=AUTH).status_code == 200
+
+    deleted = client.post(f"/api/v1/admin/tokens/{token_id}/delete?confirm=true", headers=AUTH)
+    assert deleted.status_code == 200
+    assert deleted.json() == {"deleted": True, "id": token_id, "name": "to-delete"}
+
+    listed = client.get("/api/v1/admin/tokens", headers=AUTH).json()["items"]
+    assert all(item["name"] != "to-delete" for item in listed)
+
+    # 再删一次就是不存在
+    again = client.post(f"/api/v1/admin/tokens/{token_id}/delete?confirm=true", headers=AUTH)
+    assert again.status_code == 404
+
+
 def test_rate_limit_is_per_token(tmp_path) -> None:
     settings = make_settings(tmp_path, admin_api_token=BOOTSTRAP, admin_api_rate_limit=2)
     run_migrations(settings.database_url)

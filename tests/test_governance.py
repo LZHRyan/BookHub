@@ -104,6 +104,43 @@ def test_token_page_renders_scope_controls(admin, db) -> None:
     assert "admin 作用域不能与 Book 范围共存" in html
 
 
+def test_token_page_deletes_only_revoked(admin, csrf, db) -> None:
+    """吊销只让它失效；页面上的「删除」只对已吊销的行出现，删完从列表消失。"""
+    token, _raw = token_service.issue_token(db, name="临时脚本", scopes="read")
+    db.commit()
+    token_id = token.id
+
+    # 有效时：只有「吊销」，构造删除表单也会被拒
+    html = admin.get("/admin/tokens").text
+    assert f"/admin/tokens/{token_id}/revoke" in html
+    assert f"/admin/tokens/{token_id}/delete" not in html
+    blocked = admin.post(
+        f"/admin/tokens/{token_id}/delete",
+        data={"csrf_token": csrf(admin)},
+        follow_redirects=False,
+    )
+    assert blocked.status_code == 400
+
+    # 吊销后：出现「删除」，删完记录不再出现在列表里
+    revoked = admin.post(
+        f"/admin/tokens/{token_id}/revoke",
+        data={"csrf_token": csrf(admin)},
+        follow_redirects=False,
+    )
+    assert revoked.status_code == 303
+    assert f"/admin/tokens/{token_id}/delete" in admin.get("/admin/tokens").text
+
+    removed = admin.post(
+        f"/admin/tokens/{token_id}/delete",
+        data={"csrf_token": csrf(admin)},
+        follow_redirects=False,
+    )
+    assert removed.status_code == 303
+    assert "临时脚本" not in admin.get("/admin/tokens").text
+    # 审计里必须留下这次删除
+    assert audit_service.count_rows(db) >= 1
+
+
 def test_token_book_scope_endpoint_pages_and_filters(admin, db) -> None:
     from app.services import book_groups
 

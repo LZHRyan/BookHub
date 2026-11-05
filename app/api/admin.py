@@ -1929,6 +1929,50 @@ def revoke_token(
     return JSONResponse({"revoked": True, "id": token.id, "name": token.name})
 
 
+@router.post("/tokens/{token_id}/delete", summary="删除已吊销/已过期的 Token")
+def delete_token(
+    request: Request,
+    token_id: int,
+    principal: Principal = Depends(require_scope("admin")),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """吊销只是让它失效，记录会一直留着；这里把死掉的记录真正删掉。
+
+    仍有效的 Token 不给删：必须先吊销（`DELETE /tokens/{id}`），两步分开做，
+    审计里才能留下"哪天失效"这条记录。
+    """
+    token = token_service.get_token(session, token_id)
+    if token is None:
+        raise NotFound("Token 不存在")
+    if token.id == principal.token_id:
+        raise Conflict("不能删除当前正在使用的 Token")
+    if _dry_run(request):
+        return JSONResponse(
+            {"dry_run": True, "would_delete": _token_json(token, session=session)}
+        )
+    _require_confirm(request, " Token")
+    if token_service.is_active(token):
+        raise ValidationFailed("Token 仍在有效期内，请先吊销（DELETE /tokens/{id}）再删除")
+
+    def action() -> dict[str, object]:
+        name = token.name
+        token_service.delete_token(session, token)
+        audit_service.record(
+            session,
+            actor=principal,  # type: ignore[arg-type]
+            action="token.delete",
+            target_type="token",
+            target_id=token_id,
+            target_label=name,
+            ip=client_ip(request),
+        )
+        return {"deleted": True, "id": token_id, "name": name}
+
+    return _write(
+        request, session, principal, op=f"token.delete:{token_id}", payload={}, action=action
+    )
+
+
 # ------------------------------------------------------------------ 媒体库
 
 

@@ -85,7 +85,8 @@ curl -s -H "Authorization: Bearer $BOOKHUB_TOKEN" \
 | POST | `/api/v1/admin/users/{id}/toggle` \| `/password` | 启停 / 重置密码 |
 | GET/PUT | `/api/v1/admin/settings` | 站点设置 |
 | GET | `/api/v1/admin/audit` | 审计查询（`book_id`、`actor`、分页）；需要 `admin`，带 Book 范围的 Token 一律 403 |
-| GET/POST/DELETE | `/api/v1/admin/tokens` | Token 列表 / 签发（可带 `books` 限定范围，但 `admin` 作用域不能配范围）/ 吊销 |
+| GET/POST/DELETE | `/api/v1/admin/tokens` | Token 列表 / 签发（可带 `books` 限定范围，但 `admin` 作用域不能配范围）/ 吊销（吊销后立即失效，但记录还在） |
+| POST | `/api/v1/admin/tokens/{id}/delete` | 删除**已吊销或已过期**的 Token 记录（`?dry_run=true` 预览、`?confirm=true` 执行）。仍有效的 Token 会 400：必须先吊销，两步分开才能在审计里留下失效时间 |
 | GET | `/api/v1/admin/audit.csv` | 审计导出 CSV（`book_id`、`actor`、`action`、`limit`）；需要 `admin` |
 | POST | `/api/v1/admin/audit/cleanup` | 按 `AUDIT_RETENTION_DAYS` 清理审计（默认预览，`?confirm=true` 执行） |
 | GET/POST | `/api/v1/admin/webhooks` | Webhook 列表 / 登记（密钥只返回一次；地址不能指向内网/本机，投递前还会再查一次解析结果） |
