@@ -326,9 +326,18 @@ backups/20261021T052300Z/
 
 前提：宿主机有 `docker` 与 `docker compose` v2 插件，且服务正在运行（脚本会先 `docker compose exec -T bookhub true` 探活）。
 
-#### `docker/restore.sh` 还没生成
+#### `docker/restore.sh`：从备份恢复
 
-`backup.sh` 的输出提示里引用了 `./docker/restore.sh <备份文件>`，但**该脚本目前不存在**。在它落地前按下面的手工流程恢复（**必须停服务**，SQLite 单写入者）：
+`backup.sh` 的输出提示会引用 `./docker/restore.sh <备份文件>`，该脚本就在 `docker/` 下：
+
+```bash
+./docker/restore.sh backups/20261021T052300Z/bookhub-20261021T052300Z.db          # 只换库
+./docker/restore.sh backups/20261021T052300Z/bookhub-data-20261021T052300Z.tar.gz # 整个 /data
+```
+
+流程：预检备份文件 → **停服** → 现有库改名成 `bookhub.db.bak-<ts>`（不删，保留回退）→ 覆盖数据 → 起服 → 轮询 `/healthz`。破坏性操作，脚本会要求手工输入 `yes` 确认。
+
+想手工做、或者脚本不适用（比如换机器、卷名不同）时，按下面的流程（**必须停服务**，SQLite 单写入者）：
 
 ```bash
 docker compose down

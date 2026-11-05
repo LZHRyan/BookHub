@@ -31,6 +31,7 @@ from app.services import books as books_service
 from app.services import chapters as chapters_service
 from app.services import guide as guide_service
 from app.services import sections as sections_service
+from app.services import settings as settings_service
 from app.services.search import MAX_QUERY_LENGTH
 from app.services.search import search as run_search
 
@@ -319,10 +320,12 @@ def _resolve_section(
 @router.get("/site")
 def site_info(request: Request, session: Session = Depends(get_session)) -> JSONResponse:
     settings = request.app.state.settings
+    # 站点名以后台「站点设置」为准，没设置过才回落到环境变量默认值（与网页端同源）
+    site = settings_service.load_settings(session, settings)
     guide = guide_service.find_guide(session)
     return JSONResponse(
         {
-            "name": settings.site_name,
+            "name": site["site_name"],
             "version": __version__,
             "capabilities": {
                 "formats": ["markdown", "html"],

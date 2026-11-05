@@ -264,7 +264,8 @@ BookHub/
 ├── scripts/                  # 运维脚本（如 gen_pygments.py）
 ├── docker/
 │   ├── entrypoint.sh         # 容器入口：配置自检 → 目录准备 → 迁移 → 初始管理员 → uvicorn
-│   └── backup.sh             # SQLite 在线备份 + 内容卷打包（restore.sh 尚未生成）
+│   ├── backup.sh             # SQLite 在线备份 + 内容卷打包
+│   └── restore.sh            # 从备份恢复（停服 → 旧库改名保留 → 覆盖 → 起服 → 轮询 /healthz）
 ├── docs/                     # 交付文档（本目录）
 ├── openspec/                 # 规格与变更记录
 ├── Dockerfile                # 两阶段构建，运行镜像以 uid 10001 非 root
@@ -376,7 +377,7 @@ engine.dispose()
 - 默认 `DATABASE_URL=sqlite:///./data/bookhub.db`，即启动工作目录下的 `data/bookhub.db`。
 - SQLite 开了 WAL，同目录还会出现 `bookhub.db-wal` 与 `bookhub.db-shm`；**直接拷贝单个 `.db` 文件可能丢掉尚未 checkpoint 的写入**，务必停服务或用 SQLite 在线备份（`sqlite3 db ".backup out.db"`）。
 - 容器部署：`./docker/backup.sh` 会做在线快照 + 内容卷打包 + sha256 校验（不停服），用法见 [docs/deploy.md](docs/deploy.md) 第 7 节。
-- `docker/restore.sh` **尚未生成**；恢复目前按 deploy.md 里的手工流程（停服 → 覆盖库文件 → 删掉 `-wal`/`-shm` → 起服）。
+- `docker/restore.sh` 会从备份恢复：传 `.db`（只换库）或 `bookhub-data-*.tar.gz`（整个 `/data`），流程是「预检 → 停服 → 现有库改名成 `bookhub.db.bak-<ts>` 保留 → 覆盖 → 起服 → 轮询 `/healthz`」，破坏性操作要手工输入 `yes` 确认。
 - 换成 Postgres 时备份方式完全不同（`pg_dump -Fc`），见同一篇文档。
 
 ### 7.4 启动报「缺少必需配置 SECRET_KEY」

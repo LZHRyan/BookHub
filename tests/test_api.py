@@ -64,6 +64,23 @@ def test_site_info(client) -> None:
     assert payload["capabilities"]["api_key_required"] is False
 
 
+def test_site_info_follows_admin_settings(admin, csrf) -> None:
+    """后台改过站名后，/api/v1/site 要跟网页端一致（数据库覆盖环境变量默认值）。"""
+    token = csrf(admin)
+    response = admin.post(
+        "/admin/settings",
+        data={
+            "site_name": "改过名的知识库",
+            "site_footer": "内部资料",
+            "home_intro": "",
+            "csrf_token": token,
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code in (200, 303), response.status_code
+    assert admin.get("/api/v1/site").json()["name"] == "改过名的知识库"
+
+
 def test_books_list_defaults(client, seeded) -> None:
     payload = client.get("/api/v1/books").json()
     assert payload["page"] == 1
